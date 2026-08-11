@@ -66,6 +66,14 @@ hparams = n_vocab ; n_embd ; n_head ; n_layer ; n_ff ; theta
 
 Generate API: `m generate ids ; n_new` (numeric `;` is fine).
 
+## GGUF binary (M4)
+
+- Magic LE u32 for bytes `GGUF` = `0x46554747`; version **3**
+- J codecs: `_2 (3!:4)` u32, `_3 (3!:4)` u64, `_1 fc` f32; F16 via bit unpack (not `b.` shifts)
+- Locale: `jllamagguf` (no `_` in locale name)
+- Loader promotes F16/F32 disk tensors to J f64
+- Quant types rejected until M9
+
 ## Testing
 
 - Prefer small explicit matrices with known results

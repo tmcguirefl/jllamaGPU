@@ -1,6 +1,17 @@
 # Models
 
-No production GGUF pinned yet (pre-M4).
+## Test fixture (M4)
+
+| Field | Value |
+|-------|--------|
+| Path | `test/fixtures/tiny_llama_f16.gguf` |
+| Arch | llama |
+| Dtypes | F16 weights + F32 norms |
+| Shape | n_vocab=8, n_embd=4, n_head=2, n_layer=1, n_ff=8 |
+| Regen | `python3 labs/make_fixture_gguf.py` |
+| Expect | `test/fixtures/tiny_llama_f16.expect.txt` |
+
+Not a real LM - only for loader/shape/generate smoke.
 
 ## Planned primary (M6)
 
@@ -12,10 +23,11 @@ No production GGUF pinned yet (pre-M4).
 | Path | _TBD - download into `models/` (gitignored)_ |
 | Oracle | llama.cpp greedy on the same file |
 
+When a file is chosen, add: URL, filename, sha256, `n_vocab`, `n_embd`, `n_layer`, `n_head`, `n_head_kv`, `n_ff`, `n_ctx_train`, rope settings.
+
 ## Lab / synthetic
 
 | Name | Notes |
 |------|--------|
-| `synthetic` | Random weights, tiny hparams - M2-M3 |
-
-When a file is chosen, add: URL, filename, sha256, `n_vocab`, `n_embd`, `n_layer`, `n_head`, `n_head_kv`, `n_ff`, `n_ctx_train`, rope settings.
+| `make_synthetic` | Deterministic tiny weights - M2-M3 |
+| `model_from_gguf` | Llama GGUF F16/F32 - M4 |

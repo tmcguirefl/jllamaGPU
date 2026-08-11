@@ -21,12 +21,14 @@ Inside the session:
 ```j
 jllama_help ''
 jllama_smoke ''
-jllama_test ''     NB. M1-M3 unit tests
+jllama_test ''     NB. M1-M4 unit tests
 
-NB. synthetic greedy generate (after loadcore inside session, or via smoke)
+NB. synthetic or fixture GGUF generate
 loadcore_jllama_ ''
 m =. make_synthetic_jllamamodel_ 32;8;2;2;16
 m generate_jllamamodel_ (1 2 3) ; 5
+m =. model_from_gguf_jllamagguf_ jllama_root '' , 'test/fixtures/tiny_llama_f16.gguf'
+m generate_jllamamodel_ (0 1) ; 3
 ```
 
 ## Project goal (v1)

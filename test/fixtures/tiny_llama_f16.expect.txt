@@ -1,0 +1,14 @@
+n_vocab 8
+n_embd 4
+n_head 2
+n_layer 1
+n_ff 8
+theta 10000.0
+data_off 1152
+n_tensors 12
+wte0 0.00628651 _0.00660524 0.03202113 0.00524501
+attn_norm 0.50000000 0.83333331 1.16666663 1.50000000
+wq00 _0.00318450
+wq_shape 4 4
+lm_shape 4 8
+wte_shape 8 4

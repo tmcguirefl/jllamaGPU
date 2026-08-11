@@ -4,8 +4,8 @@ NB.   /Applications/j9.8/bin/jconsole /Users/tomdevel/jdev/jllama/jllama.ijs
 
 cocurrent 'jllama'
 
-VERSION =: '0.3.0'
-MILESTONE =: 'M3'
+VERSION =: '0.4.0'
+MILESTONE =: 'M4'
 
 NB. Directory containing this script (works when loaded by full path).
 ROOT =: (jpath '~user') NB. placeholder overwritten below
@@ -46,7 +46,7 @@ jllama - Llama-style inference in J
   smoke      jllama_smoke ''
   test       jllama_test ''
   root       jllama_root ''
-  milestone  M3 transformer stack + greedy generate
+  milestone  M4 GGUF F16/F32 loader
 
 Locales:
   jllamatensor  mp silu softmax rmsnorm linear causal_mask allclose
@@ -54,13 +54,15 @@ Locales:
   jllamaattn    mha_full mha_step mha_prefill_cached
   jllamablock   ffn_swiglu block_full block_step
   jllamamodel   make_synthetic generate forward_full
+  jllamagguf    gguf_load gguf_tensor model_from_gguf
 
 Example:
   loadcore_jllama_ ''
   m =. make_synthetic_jllamamodel_ 32;8;2;2;16
   m generate_jllamamodel_ (1 2 3) ; 5
+  m =. model_from_gguf_jllamagguf_ jllama_root '' , 'test/fixtures/tiny_llama_f16.gguf'
 
-Next: M4 GGUF F16/F32 loader
+Next: M5 tokenizer
 
 jconsole: /Applications/j9.8/bin/jconsole
 trace:    load 'general/misc/trace'
@@ -79,16 +81,17 @@ root =: 3 : 0
   ROOT
 )
 
-NB. Load M1-M3 core modules in order
+NB. Load M1-M4 modules in order
 loadcore =: 3 : 0
   jrequire 'core/tensor.ijs'
   jrequire 'core/rope.ijs'
   jrequire 'core/attention.ijs'
   jrequire 'core/block.ijs'
   jrequire 'core/model.ijs'
+  jrequire 'io/gguf.ijs'
 )
 
-NB. Smoke: prior checks + synthetic generate length
+NB. Smoke: prior checks + synthetic generate + optional fixture GGUF
 smoke =: 3 : 0
   assert. *# ROOT
   assert. fexist ROOT , 'jllama.ijs'
@@ -103,12 +106,21 @@ smoke =: 3 : 0
   ids =. m generate_jllamamodel_ (1 2) ; 3
   assert. 5 = # ids
   assert. *./ (0 <: ids) *. ids < 16
+  fix =. ROOT , 'test/fixtures/tiny_llama_f16.gguf'
+  if. fexist fix do.
+    g =. model_from_gguf_jllamagguf_ fix
+    'hp wte layers ln_f lm_head' =. > g
+    'n_vocab n_embd n_head n_layer n_ff theta' =. hp
+    assert. 8 4 2 1 8 -: n_vocab , n_embd , n_head , n_layer , n_ff
+    gids =. g generate_jllamamodel_ (0 1) ; 2
+    assert. 4 = # gids
+  end.
   smoutput 'jllama smoke OK  ' , version ''
   smoutput 'ROOT=' , ROOT
   i. 0 0
 )
 
-NB. M1 + M2 + M3 unit tests
+NB. M1 + M2 + M3 + M4 unit tests
 test =: 3 : 0
   loadcore ''
   jrequire 'test/test_tensor.ijs'
@@ -117,9 +129,12 @@ test =: 3 : 0
   r2 =. run_jllamatestm2_ ''
   jrequire 'test/test_m3.ijs'
   r3 =. run_jllamatestm3_ ''
+  jrequire 'test/test_m4.ijs'
+  r4 =. run_jllamatestm4_ ''
   assert. r1
   assert. r2
   assert. r3
+  assert. r4
   smoutput 'jllama test OK  ' , version ''
   i. 0 0
 )
