@@ -4,8 +4,8 @@ NB.   /Applications/j9.8/bin/jconsole /Users/tomdevel/jdev/jllama/jllama.ijs
 
 cocurrent 'jllama'
 
-VERSION =: '0.6.0'
-MILESTONE =: 'M6'
+VERSION =: '0.7.0'
+MILESTONE =: 'M7'
 
 NB. Directory containing this script (works when loaded by full path).
 ROOT =: (jpath '~user') NB. placeholder overwritten below
@@ -46,14 +46,15 @@ jllama - Llama-style inference in J
   smoke      jllama_smoke ''
   test       jllama_test ''
   root       jllama_root ''
-  milestone  M6 greedy parity vs llama.cpp
+  milestone  M7 sampling (temp/top-k/top-p/EOS)
 
 Locales:
   jllamatensor  mp silu softmax rmsnorm linear causal_mask allclose
   jllamarope    rope rotate_half
   jllamaattn    mha_full mha_step mha_prefill_cached
   jllamablock   ffn_swiglu block_full block_step
-  jllamamodel   make_synthetic generate forward_full
+  jllamamodel   make_synthetic generate generate_sample
+  jllamasample  sample_next top_k_filter top_p_filter
   jllamagguf    gguf_load gguf_tensor model_from_gguf
   jllamavocab   vocab_from_gguf encode decode
 
@@ -61,16 +62,14 @@ Example:
   loadcore_jllama_ ''
   m =. make_synthetic_jllamamodel_ 32;8;2;2;16
   m generate_jllamamodel_ (1 2 3) ; 5
-  m =. model_from_gguf_jllamagguf_ jllama_root '' , 'test/fixtures/tiny_parity_f16.gguf'
-  v =. vocab_from_gguf_jllamavocab_ jllama_root '' , 'test/fixtures/tiny_parity_f16.gguf'
-  ids =. v encode_jllamavocab_ 'ab'
-  m generate_jllamamodel_ ids ; 3
+  cfg =. 0.8 ; 40 ; 0.95 ; 1 ; _1 ; 1
+  m generate_sample_jllamamodel_ (<1 2 3) , (<8) , (<cfg)
 
 Oracle (M6):
   make -C labs oracle_greedy   NB. needs brew llama.cpp
   labs/run_oracle.sh test/fixtures/tiny_parity_f16.gguf ab 3 --ids 259
 
-Next: M7 sampling UX
+Next: M8 performance
 
 jconsole: /Applications/j9.8/bin/jconsole
 trace:    load 'general/misc/trace'
@@ -89,12 +88,13 @@ root =: 3 : 0
   ROOT
 )
 
-NB. Load M1-M6 modules in order
+NB. Load M1-M7 modules in order
 loadcore =: 3 : 0
   jrequire 'core/tensor.ijs'
   jrequire 'core/rope.ijs'
   jrequire 'core/attention.ijs'
   jrequire 'core/block.ijs'
+  jrequire 'core/sample.ijs'
   jrequire 'core/model.ijs'
   jrequire 'io/gguf.ijs'
   jrequire 'io/vocab.ijs'
@@ -140,12 +140,15 @@ smoke =: 3 : 0
     g2 =. pm generate_jllamamodel_ pids ; 2
     assert. 3 = # g2
   end.
+  cfg =. 0.8 ; 5 ; 0.9 ; 7 ; _1 ; 1
+  sids =. m generate_sample_jllamamodel_ (<1 2) , (<3) , (<cfg)
+  assert. 5 = # sids
   smoutput 'jllama smoke OK  ' , version ''
   smoutput 'ROOT=' , ROOT
   i. 0 0
 )
 
-NB. M1-M6 unit tests (M6 needs tools/oracle_greedy)
+NB. M1-M7 unit tests (M6 needs tools/oracle_greedy)
 test =: 3 : 0
   loadcore ''
   jrequire 'test/test_tensor.ijs'
@@ -160,12 +163,15 @@ test =: 3 : 0
   r5 =. run_jllamatestm5_ ''
   jrequire 'test/test_m6.ijs'
   r6 =. run_jllamatestm6_ ''
+  jrequire 'test/test_m7.ijs'
+  r7 =. run_jllamatestm7_ ''
   assert. r1
   assert. r2
   assert. r3
   assert. r4
   assert. r5
   assert. r6
+  assert. r7
   smoutput 'jllama test OK  ' , version ''
   i. 0 0
 )

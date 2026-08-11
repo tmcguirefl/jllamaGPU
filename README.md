@@ -21,7 +21,7 @@ Inside the session:
 ```j
 jllama_help ''
 jllama_smoke ''
-jllama_test ''     NB. M1-M6 unit tests (M6 needs tools/oracle_greedy)
+jllama_test ''     NB. M1-M7 unit tests (M6 needs tools/oracle_greedy)
 
 NB. synthetic or fixture GGUF generate + tokenize
 loadcore_jllama_ ''

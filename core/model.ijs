@@ -24,6 +24,9 @@ block_full =: block_full_jllamablock_
 block_step =: block_step_jllamablock_
 block_prefill_cached =: block_prefill_cached_jllamablock_
 DEFAULT_THETA =: DEFAULT_THETA_jllamarope_
+sample_next =: sample_next_jllamasample_
+sample_cfg_pack =: sample_cfg_pack_jllamasample_
+default_cfg =: default_cfg_jllamasample_
 
 NB. ---------------------------------------------------------------
 NB. Weight builders
@@ -147,29 +150,48 @@ forward_step =: 4 : 0
 )
 
 NB. ---------------------------------------------------------------
-NB. Greedy generate
-NB. model generate (<ids) , (<n_new)   OR   ids ; n_new  (numeric ;)
+NB. Generate
+NB. model generate ids ; n_new
+NB.   Greedy (temp=0). Backward-compatible with M3-M6.
+NB.
+NB. model generate_sample (<ids) , (<n_new) , (<cfg)
+NB.   cfg = temp ; top_k ; top_p ; seed ; eos_id ; stop_on_eos
+NB.   See core/sample.ijs. Pack with catenate of scalar boxes.
+NB.   On EOS (if eos_id>=0 and stop_on_eos): append EOS and stop.
 NB. ---------------------------------------------------------------
 generate =: 4 : 0
   model =. x
   'ids n_new' =. y
+  model generate_sample (<,ids) , (<n_new) , (<default_cfg '')
+)
+
+generate_sample =: 4 : 0
+  model =. x
+  'ids n_new cfg' =. y
   ids =. , ids
+  n_new =. ,. n_new
+  n_new =. {. n_new
+  cfg =. sample_cfg_pack cfg
+  'temp top_k top_p seed eos_id stop_on_eos' =. cfg
   if. 0 = # ids do.
-    'generate: empty prompt' assert 0
+    'generate_sample: empty prompt' assert 0
   end.
   'hp wte layers ln_f lm_head' =. > model
   'h caches' =. model forward_prefill ids
   for. i. n_new do.
     logits =. model logits_last h
-    nxt =. (i. >./) logits
+    'nxt seed' =. sample_next (<cfg) , (<logits)
+    NB. refresh seed inside cfg (open numeric list)
+    cfg =. (temp , top_k , top_p , seed , eos_id , stop_on_eos)
     ids =. ids , nxt
+    if. (eos_id >: 0) *. stop_on_eos *. nxt = eos_id do. break. end.
     pos =. <: # ids
     'h caches' =. model forward_step (<nxt) , (<caches) , (<pos)
   end.
   ids
 )
 
-NB. Slow oracle: full recompute every token
+NB. Slow oracle: full recompute every token (greedy)
 generate_fullrecompute =: 4 : 0
   model =. x
   'ids n_new' =. y

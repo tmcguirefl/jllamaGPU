@@ -11,7 +11,7 @@ Full narrative was developed in the jllama design session. Summary:
 | **M4** | GGUF F16/F32 | load real file; names/shapes match dump | **done** |
 | **M5** | Tokenizer | GPT-2 byte BPE encode/decode from GGUF vocab | **done** |
 | **M6** | Parity * | greedy tokens match llama.cpp on tiny F16 fixture | **done** |
-| **M7** | Sampling UX | temp/top-k/top-p, EOS stop | |
+| **M7** | Sampling UX | temp/top-k/top-p, EOS stop | **done** |
 | **M8** | Performance | profile; fewer copies; LAPACK where useful | |
 | **M9** | Quant (opt) | 9a dequant-to-float first | |
 | **M10** | Second arch (opt) | shared core, second golden model | |

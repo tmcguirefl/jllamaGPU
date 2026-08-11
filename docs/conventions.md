@@ -84,6 +84,15 @@ Generate API: `m generate ids ; n_new` (numeric `;` is fine).
 - BOS/EOS skipped on decode; optional add_bos/add_eos from GGUF flags
 - J `*.` does **not** short-circuit; guard `(i+1){` before pairing in BPE merge
 
+## Sampling (M7)
+
+- Locale: `jllamasample`
+- `generate` remains greedy (`temp=0`) for M3–M6 compatibility
+- `generate_sample (<ids),(<n_new),(<cfg)` for stochastic decoding
+- cfg: `temp top_k top_p seed eos_id stop_on_eos` (open numeric after pack)
+- LCG RNG; same seed => same samples
+- EOS: if `eos_id>=0` and `stop_on_eos`, append EOS token and halt
+
 ## Parity oracle (M6)
 
 - Binary: `tools/oracle_greedy` built from `labs/oracle_greedy.c` (`make -C labs`)

@@ -7,8 +7,9 @@ Array ops and transformer math.
 | `tensor.ijs` | M0-M1 | done |
 | `rope.ijs` | M2 | done |
 | `attention.ijs` | M2 | done |
-| `block.ijs` | M3 | **done** - SwiGLU + pre-norm block |
-| `model.ijs` | M3 | **done** - stack + greedy generate |
+| `block.ijs` | M3 | done - SwiGLU + pre-norm block |
+| `model.ijs` | M3 | done - stack + generate |
+| `sample.ijs` | M7 | **done** - temp / top-k / top-p / EOS |
 
 ## Locales
 
@@ -46,8 +47,24 @@ Call packs use `,` of scalar boxes, e.g.
 | `make_synthetic` | tiny deterministic model |
 | `forward_full` | no-cache stack |
 | `forward_prefill` / `forward_step` | KV path |
-| `generate` | greedy with cache |
-| `generate_fullrecompute` | slow oracle |
+| `generate` | greedy with cache (`temp=0`) |
+| `generate_sample` | temp/top-k/top-p + EOS stop |
+| `generate_fullrecompute` | slow greedy oracle |
+
+### jllamasample (M7)
+
+| Verb | Role |
+|------|------|
+| `sample_next` | `(<cfg),(<logits)` -> `(<tok),(<seed2)` |
+| `top_k_filter` / `top_p_filter` | nucleus filters |
+| `default_cfg` | `0 0 1 0 _1 1` |
+
+cfg: `temp ; top_k ; top_p ; seed ; eos_id ; stop_on_eos` (`temp<=0` => greedy).
+
+```j
+cfg =. 0.8 ; 40 ; 0.95 ; 1 ; _1 ; 1
+m generate_sample_jllamamodel_ (<ids) , (<n_new) , (<cfg)
+```
 
 Model (one scalar box):
 `<"_ (hparams ; wte ; layers ; ln_f ; lm_head)`  
