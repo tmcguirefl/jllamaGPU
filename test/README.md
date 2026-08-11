@@ -9,6 +9,7 @@
 | `test_m5.ijs` | M5 | done - GPT-2 byte BPE encode/decode |
 | `test_m6.ijs` | M6 | done - greedy parity vs libllama oracle |
 | `test_m7.ijs` | M7 | done - temp/top-k/top-p + EOS stop |
+| `test_m8.ijs` | M8 | done - jllama_cli parse + run |
 | `fixtures/tiny_llama_f16.gguf` | M4 | tiny Llama-arch weight fixture |
 | `fixtures/tiny_bpe_vocab.gguf` | M5 | tiny BPE vocab-only GGUF |
 | `fixtures/tiny_parity_f16.gguf` | M6 | weights + tokenizer for oracle parity |

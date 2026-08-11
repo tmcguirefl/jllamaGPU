@@ -12,6 +12,15 @@ Not a port of the llama.cpp C++ codebase. jllama reimplements a **thin vertical 
 
 ## Quick start
 
+### CLI (M8)
+
+```sh
+bin/jllama_cli -m test/fixtures/tiny_parity_f16.gguf -p ab -n 3 --tokens
+bin/jllama_cli --help
+```
+
+### REPL
+
 ```sh
 /Applications/j9.8/bin/jconsole /Users/tomdevel/jdev/jllama/jllama.ijs
 ```
@@ -21,7 +30,7 @@ Inside the session:
 ```j
 jllama_help ''
 jllama_smoke ''
-jllama_test ''     NB. M1-M7 unit tests (M6 needs tools/oracle_greedy)
+jllama_test ''     NB. M1-M8 unit tests (M6 needs tools/oracle_greedy)
 
 NB. synthetic or fixture GGUF generate + tokenize
 loadcore_jllama_ ''
@@ -68,12 +77,14 @@ J has no float32 arrays in 64-bit J; loaded F16/F32 weights become **float64** (
 
 ```text
 jllama.ijs          NB. entry: load path, help, smoke, test
+jllama_cli.ijs      NB. CLI entry (exits after run)
+bin/jllama_cli      NB. bash wrapper
+cli/                NB. jllamacli parse + run
 core/               NB. tensor, rope, attn, block, sample, model
 io/                 NB. GGUF, vocab
 test/               NB. unit + parity tests
 docs/               NB. milestones, hardware, models, conventions
 labs/               NB. fixtures, oracle, experiments
-bin/                NB. shell wrappers (M8+)
 models/             NB. large GGUFs (gitignored)
 ```
 
@@ -81,7 +92,7 @@ models/             NB. large GGUFs (gitignored)
 
 | Now | Next | Later |
 |-----|------|--------|
-| **M0–M7 done** (engine + sample + fixture parity) | **M8 CLI** | M9 perf → M10 ~1B lab → optional server/quant |
+| **M0–M8 done** (engine + sample + fixture parity + CLI) | **M9 perf** | M10 ~1B lab → optional server/quant |
 
 Full board: [docs/milestones.md](docs/milestones.md).
 

@@ -4,8 +4,8 @@ NB.   /Applications/j9.8/bin/jconsole /Users/tomdevel/jdev/jllama/jllama.ijs
 
 cocurrent 'jllama'
 
-VERSION =: '0.7.0'
-MILESTONE =: 'M7'
+VERSION =: '0.8.0'
+MILESTONE =: 'M8'
 
 NB. Directory containing this script (works when loaded by full path).
 ROOT =: (jpath '~user') NB. placeholder overwritten below
@@ -46,7 +46,7 @@ jllama - Llama-style inference in J
   smoke      jllama_smoke ''
   test       jllama_test ''
   root       jllama_root ''
-  milestone  M7 sampling (temp/top-k/top-p/EOS)
+  milestone  M8 jllama_cli (shell front-end)
 
 Locales:
   jllamatensor  mp silu softmax rmsnorm linear causal_mask allclose
@@ -57,6 +57,11 @@ Locales:
   jllamasample  sample_next top_k_filter top_p_filter
   jllamagguf    gguf_load gguf_tensor model_from_gguf
   jllamavocab   vocab_from_gguf encode decode
+  jllamacli     parse_args run main (after loadcli)
+
+CLI:
+  bin/jllama_cli -m MODEL.gguf -p PROMPT -n 16 [--temp ...]
+  bin/jllama_cli --help
 
 Example:
   loadcore_jllama_ ''
@@ -69,7 +74,7 @@ Oracle (M6):
   make -C labs oracle_greedy   NB. needs brew llama.cpp
   labs/run_oracle.sh test/fixtures/tiny_parity_f16.gguf ab 3 --ids 259
 
-Next: M8 jllama_cli (shell front-end)
+Next: M9 performance (profile CLI path)
 
 jconsole: /Applications/j9.8/bin/jconsole
 trace:    load 'general/misc/trace'
@@ -98,6 +103,12 @@ loadcore =: 3 : 0
   jrequire 'core/model.ijs'
   jrequire 'io/gguf.ijs'
   jrequire 'io/vocab.ijs'
+)
+
+NB. Load CLI (M8) after core
+loadcli =: 3 : 0
+  loadcore ''
+  jrequire 'cli/cli.ijs'
 )
 
 NB. Smoke: prior checks + synthetic generate + optional fixture GGUF
@@ -148,7 +159,7 @@ smoke =: 3 : 0
   i. 0 0
 )
 
-NB. M1-M7 unit tests (M6 needs tools/oracle_greedy)
+NB. M1-M8 unit tests (M6 needs tools/oracle_greedy)
 test =: 3 : 0
   loadcore ''
   jrequire 'test/test_tensor.ijs'
@@ -165,6 +176,9 @@ test =: 3 : 0
   r6 =. run_jllamatestm6_ ''
   jrequire 'test/test_m7.ijs'
   r7 =. run_jllamatestm7_ ''
+  jrequire 'cli/cli.ijs'
+  jrequire 'test/test_m8.ijs'
+  r8 =. run_jllamatestm8_ ''
   assert. r1
   assert. r2
   assert. r3
@@ -172,6 +186,7 @@ test =: 3 : 0
   assert. r5
   assert. r6
   assert. r7
+  assert. r8
   smoutput 'jllama test OK  ' , version ''
   i. 0 0
 )

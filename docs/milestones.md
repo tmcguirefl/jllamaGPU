@@ -14,36 +14,36 @@ jllama reimplements a thin Llama-style decode path in J, validated against llama
 | **M5** | Tokenizer | GPT-2 byte BPE encode/decode from GGUF vocab | **done** |
 | **M6** | Parity (fixture) | greedy tokens match llama.cpp on tiny F16 fixture | **done** |
 | **M7** | Sampling | temp / top-k / top-p, EOS stop | **done** |
-| **M8** | **CLI** | `jllama_cli` shell entry: model, prompt, n, sample flags, print text/ids | **next** |
+| **M8** | **CLI** | `jllama_cli` shell entry: model, prompt, n, sample flags, print text/ids | **done** |
 | **M9** | Performance | profile CLI path; fewer copies; LAPACK/`mp` where useful | planned |
 | **M10** | Real-model lab | pin ~0.5B–1B F16 GGUF under `models/`; smoke + optional greedy spot-check | planned |
 | **M11** | Server (opt) | thin HTTP/SSE wrapper around same engine as CLI | optional |
 | **M12** | Quant (opt) | dequant-to-f64 first (Q4/Q5/Q8), then optional faster paths | optional |
 | **M13** | Second arch (opt) | shared core, second golden model (e.g. Qwen-dense) | optional |
 
-**Completed critical path:** M0 → M7 (engine vertical slice).  
-**Product path:** M8 → M9 → M10.  
+**Completed critical path:** M0 → M8 (engine + CLI).  
+**Product path next:** M9 → M10.  
 **Optional:** M11–M13.
 
 ## What “done” means for open milestones
 
-### M8 — CLI (next)
+### M8 — CLI (**done**)
 
 Thin front-end over existing APIs — not a llama.cpp clone.
 
 ```text
-jllama_cli -m PATH.gguf -p "prompt" -n 64 \
+bin/jllama_cli -m PATH.gguf -p "prompt" -n 64 \
   --temp 0.8 --top-k 40 --top-p 0.95 [--eos ID] [--tokens]
 ```
 
-Exit criteria:
+Delivered:
 
-- Runnable from shell via jconsole (wrapper script or `jllama_cli.ijs` + `bin/jllama_cli`)
-- Flags: model, prompt (or `-f`), `n_predict`, temp/top-k/top-p/seed, optional EOS, optional print token ids
-- Uses `model_from_gguf`, `vocab_from_gguf`, `encode`, `generate` / `generate_sample`, `decode`
-- Works on `test/fixtures/tiny_parity_f16.gguf` without a large download
-- Documented in README; smoke/help mentions it
-- **Out of scope for M8:** chat templates, REPL conversation, GBNF, HTTP, GPU
+- `bin/jllama_cli` + `jllama_cli.ijs` + locale `jllamacli` (`cli/cli.ijs`)
+- Flags: model, prompt (or `-f`), `n_predict`, temp/top-k/top-p/seed, optional EOS, `--tokens`
+- Uses `model_from_gguf`, `vocab_from_gguf`, `encode`, `generate_sample`, `decode`
+- Works on `test/fixtures/tiny_parity_f16.gguf` (greedy ids match M6 oracle)
+- `test/test_m8.ijs` (10 tests); version **0.8.0**
+- **Out of scope (still):** chat templates, REPL conversation, GBNF, HTTP, GPU
 
 ### M9 — Performance
 
@@ -87,11 +87,10 @@ Only after CLI is pleasant:
 
 ## Suggested “what next” order
 
-1. **M8 CLI** — makes the stack usable and demos M4–M7  
-2. **M9 perf** — profile the path people actually run  
-3. **M10 real GGUF** — one documented ~1B F16 when you want a real LM feel  
-4. **M11 server** only if you need a networked client  
-5. **M12/M13** as interest/need dictates  
+1. **M9 perf** — profile the CLI path people actually run  
+2. **M10 real GGUF** — one documented ~1B F16 when you want a real LM feel  
+3. **M11 server** only if you need a networked client  
+4. **M12/M13** as interest/need dictates  
 
 ## Version mapping
 
@@ -104,6 +103,6 @@ Only after CLI is pleasant:
 | 0.5.x | M5 |
 | 0.6.x | M6 |
 | 0.7.x | M7 |
-| 0.8.x | M8 CLI (upcoming) |
+| 0.8.x | M8 CLI |
 | 0.9.x | M9 perf |
 | 1.0? | CLI + real-model lab solid enough to call v1 |
