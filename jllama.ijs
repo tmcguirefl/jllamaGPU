@@ -4,7 +4,7 @@ NB.   /Applications/j9.8/bin/jconsole /Users/tomdevel/jdev/jllama/jllama.ijs
 
 cocurrent 'jllama'
 
-VERSION =: '0.13.1'
+VERSION =: '0.13.2'
 MILESTONE =: 'M13'
 
 NB. Directory containing this script (works when loaded by full path).
@@ -56,7 +56,7 @@ Locales:
   jllamamodel   make_synthetic generate generate_sample
   jllamasample  sample_next top_k_filter top_p_filter
   jllamagguf    gguf_load gguf_tensor model_from_gguf
-  jllamavocab   vocab_from_gguf encode decode (gpt2 BPE + llama SPM)
+  jllamavocab   vocab_from_gguf encode decode (gpt2/llama-bpe + llama SPM)
   jllamacli     parse_args run main (after loadcli)
 
 CLI:

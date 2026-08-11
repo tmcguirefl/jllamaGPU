@@ -1,8 +1,9 @@
-NB. jllama tokenizer (M5 + M10)
+NB. jllama tokenizer (M5 + M10 + Llama-3 BPE BOS)
 NB.
 NB. Supports:
-NB.   gpt2|bpe  - GPT-2 byte-level BPE (fixtures)
+NB.   gpt2|bpe  - GPT-2 byte-level BPE (fixtures; Llama-3 uses model=gpt2 pre=llama-bpe)
 NB.   llama     - SentencePiece-style SPM (llama.cpp llm_tokenizer_spm)
+NB. Llama-3: missing add_bos_token + pre=llama-bpe => add_bos=1 (match libllama)
 NB.
 NB. Locale: jllamavocab
 NB.
@@ -223,12 +224,12 @@ vocab_from_load =: 3 : 0
     tokens =. raw_tokens
     scores =. , load gguf_meta_default_jllamagguf_ 'tokenizer.ggml.scores' ; (0 $ 0)
     'vocab: llama SPM needs scores' assert (# scores) = # tokens
-    bos =. load gguf_meta_default_jllamagguf_ 'tokenizer.ggml.bos_token_id' ; 1
-    eos =. load gguf_meta_default_jllamagguf_ 'tokenizer.ggml.eos_token_id' ; 2
-    unk =. load gguf_meta_default_jllamagguf_ 'tokenizer.ggml.unknown_token_id' ; 0
+    bos =. {. load gguf_meta_default_jllamagguf_ 'tokenizer.ggml.bos_token_id' ; 1
+    eos =. {. load gguf_meta_default_jllamagguf_ 'tokenizer.ggml.eos_token_id' ; 2
+    unk =. {. load gguf_meta_default_jllamagguf_ 'tokenizer.ggml.unknown_token_id' ; 0
     NB. SPM defaults match llama.cpp: add_bos=1, space prefix on
-    add_bos =. load gguf_meta_default_jllamagguf_ 'tokenizer.ggml.add_bos_token' ; 1
-    add_eos =. load gguf_meta_default_jllamagguf_ 'tokenizer.ggml.add_eos_token' ; 0
+    add_bos =. {. load gguf_meta_default_jllamagguf_ 'tokenizer.ggml.add_bos_token' ; 1
+    add_eos =. {. load gguf_meta_default_jllamagguf_ 'tokenizer.ggml.add_eos_token' ; 0
     add_sp =. 1
     pre =. load gguf_meta_default_jllamagguf_ 'tokenizer.ggml.pre' ; 'default'
   else.
@@ -245,12 +246,15 @@ vocab_from_load =: 3 : 0
       right =. (sp + 1) }. s
       ranks =. ranks , < (<left) , (<right)
     end.
-    bos =. load gguf_meta_default_jllamagguf_ 'tokenizer.ggml.bos_token_id' ; 1
-    eos =. load gguf_meta_default_jllamagguf_ 'tokenizer.ggml.eos_token_id' ; 2
-    unk =. load gguf_meta_default_jllamagguf_ 'tokenizer.ggml.unknown_token_id' ; 0
-    add_bos =. load gguf_meta_default_jllamagguf_ 'tokenizer.ggml.add_bos_token' ; 0
-    add_eos =. load gguf_meta_default_jllamagguf_ 'tokenizer.ggml.add_eos_token' ; 0
+    bos =. {. load gguf_meta_default_jllamagguf_ 'tokenizer.ggml.bos_token_id' ; 1
+    eos =. {. load gguf_meta_default_jllamagguf_ 'tokenizer.ggml.eos_token_id' ; 2
+    unk =. {. load gguf_meta_default_jllamagguf_ 'tokenizer.ggml.unknown_token_id' ; 0
     pre =. load gguf_meta_default_jllamagguf_ 'tokenizer.ggml.pre' ; 'byte'
+    NB. Llama-3 BPE (pre=llama-bpe): llama.cpp adds BOS by default when meta omits add_bos_token.
+    NB. Fixtures set add_bos_token=0 explicitly. Default 0 for other gpt2/bpe.
+    def_bos =. pre -: 'llama-bpe'
+    add_bos =. {. load gguf_meta_default_jllamagguf_ 'tokenizer.ggml.add_bos_token' ; def_bos
+    add_eos =. {. load gguf_meta_default_jllamagguf_ 'tokenizer.ggml.add_eos_token' ; 0
   end.
   pack =. (<model) , (<tokens) , (<ranks) , (<bos) , (<eos) , (<unk) , (<add_bos) , (<add_eos) , (<pre) , (<scores) , (<add_sp)
   <"_ pack

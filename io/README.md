@@ -39,7 +39,7 @@ m generate_jllamamodel_ (0 1) ; 3
 | `vocab_token` / `vocab_bos` / `vocab_eos` / `vocab_unk` | helpers |
 
 **Supported:**
-- `tokenizer.ggml.model` = `gpt2` or `bpe` — whole-string byte BPE (GPT-2 `bytes_to_unicode`)
+- `tokenizer.ggml.model` = `gpt2` or `bpe` — whole-string byte BPE (GPT-2 `bytes_to_unicode`); `pre=llama-bpe` defaults `add_bos=1` when meta omits it (Llama 3)
 - `tokenizer.ggml.model` = `llama` — SentencePiece-style SPM (llama.cpp `llm_tokenizer_spm`), scores + U+2581 space escape, byte fallback `<0xNN>`
 
 No full GPT-2 regex pre-tokenizer yet.

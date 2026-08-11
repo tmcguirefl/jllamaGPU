@@ -89,7 +89,7 @@ hf download bartowski/Llama-3.2-1B-Instruct-GGUF Llama-3.2-1B-Instruct-f16.gguf 
 bin/jllama_cli -m models/Llama-3.2-1B-Instruct-f16.gguf -p "The capital of France is" -n 16
 ```
 
-Notes: load is F16→f64 (LUT decode); pure-J generate is slow vs llama.cpp; no chat template; no quant.
+Notes: load is F16→f64 (LUT decode); pure-J generate is slow vs llama.cpp; **BOS is prepended** (`pre=llama-bpe`); no chat template (Instruct models still need manual headers for chat); no quant.
 
 ## Lab / synthetic
 
