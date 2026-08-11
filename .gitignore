@@ -1,0 +1,7 @@
+models/**
+!models/.gitignore
+*.swp
+.DS_Store
+/tmp/
+labs/scratch/**
+.claude/
