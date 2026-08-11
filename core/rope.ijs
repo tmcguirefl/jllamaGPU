@@ -1,7 +1,14 @@
 NB. jllama RoPE (rotary position embeddings)
-NB. Llama-style half-rotation on the last axis:
-NB.   rotate_half([x1|x2]) = [-x2|x1]
-NB.   out = x * cos + rotate_half(x) * sin
+NB. Llama / ggml ROPE_TYPE_NORMAL: pair-wise consecutive dims.
+NB.   For each pair (x0,x1) at indices 2i, 2i+1 with angle theta_i:
+NB.     out0 = x0*cos - x1*sin
+NB.     out1 = x0*sin + x1*cos
+NB. Equivalent form used here:
+NB.   rotate_pairs([x0,x1,x2,x3,...]) = [-x1,x0,-x3,x2,...]
+NB.   out = x * cos + rotate_pairs(x) * sin
+NB.   with cos/sin layout [c0,c0,c1,c1,...] (ggml NORMAL cache).
+NB.
+NB. (NeoX / GPT-J half-rotation is NOT used; that is rope_type=2.)
 NB.
 NB. Last axis is d_head (must be even).
 NB. Rank 2: n_tok x d_head
@@ -27,19 +34,26 @@ rope_inv =: 4 : 0
 )
 
 NB. pos rope_sincos inv_freq -> cos ; sin  each (#pos) x d_head
+NB. NORMAL layout: duplicate each freq angle across the pair [c0 c0 c1 c1 ...]
 rope_sincos =: 4 : 0
   freqs =. x */ y
   c =. 2 o. freqs
   s =. 1 o. freqs
-  (c ,. c) ; (s ,. s)
+  (2 #"1 c) ; (2 #"1 s)
 )
 
-NB. rotate_half on last axis
-rotate_half1 =: 3 : 0
-  h =. -: # y
-  (- h }. y) , h {. y
+NB. rotate_pairs on last axis: [-x1,x0,-x3,x2,...]
+NB. Pairs via _2]\ ; reverse each pair; *"1 multiplies every pair by _1 1.
+NB. Parens required so `"1 does not bind across _2.
+rotate_pairs1 =: 3 : 0
+  'rope: last axis must be even' assert 0 = 2 | # y
+  , _1 1 *"1 |."1 (_2 ]\ y)
 )
-rotate_half =: rotate_half1"1
+rotate_pairs =: rotate_pairs1"1
+
+NB. Alias kept for callers/tests that still name the helper rotate_half.
+NB. Behaviour is NORMAL pair rotation, not NeoX half-rotation.
+rotate_half =: rotate_pairs
 
 NB. n_head expand_heads (n_tok x d) -> n_tok x n_head x d
 NB. J does not broadcast (n_tok x 1 x d) against (n_tok x n_head x d).
@@ -70,7 +84,7 @@ rope =: 3 : 0
     cs =. nh expand_heads cs
     ss =. nh expand_heads ss
   end.
-  (y * cs) + (rotate_half y) * ss
+  (y * cs) + (rotate_pairs y) * ss
 )
 
 cocurrent 'base'

@@ -19,7 +19,7 @@ Array ops and transformer math.
 
 ### jllamarope (M2)
 
-`rope` `rotate_half`
+`rope` `rotate_pairs` (`rotate_half` alias) — Llama NORMAL pair-wise RoPE
 
 ### jllamaattn (M2+M13)
 
