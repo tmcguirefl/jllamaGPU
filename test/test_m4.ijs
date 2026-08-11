@@ -109,8 +109,9 @@ test_tensor_shapes_values =: 3 : 0
 test_model_from_gguf =: 3 : 0
   m =. model_from_gguf FIXTURE
   'hp wte layers ln_f lm_head' =. > m
-  'n_vocab n_embd n_head n_layer n_ff theta' =. hp
+  'n_vocab n_embd n_head n_layer n_ff theta n_head_kv' =. hp
   assert. 8 4 2 1 8 -: n_vocab , n_embd , n_head , n_layer , n_ff
+  assert. 2 = n_head_kv
   assert. 1e_3 > | theta - 10000
   assert. 8 4 -: $ wte
   assert. 4 = # ln_f

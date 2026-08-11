@@ -1,7 +1,7 @@
-NB. jllama transformer block + SwiGLU FFN (M3)
+NB. jllama transformer block + SwiGLU FFN (M3 + M13 GQA)
 NB.
 NB. Llama-style pre-norm block:
-NB.   x = x + MHA( rmsnorm(x) )
+NB.   x = x + MHA/GQA( rmsnorm(x) )
 NB.   x = x + FFN( rmsnorm(x) )
 NB.
 NB. FFN = SwiGLU:
@@ -9,6 +9,7 @@ NB.   (silu(x mp w_gate) * (x mp w_up)) mp w_down
 NB.
 NB. Layer is ONE scalar box of 9 weights:
 NB.   <"_ (attn_norm ; wq ; wk ; wv ; wo ; ffn_norm ; w_gate ; w_up ; w_down)
+NB. Wk/Wv may be narrower than Wq under GQA (n_head_kv < n_head).
 NB.
 NB. Arg packing rule (critical):
 NB.   Chained  x ; y ; z  RE-BOXES when the left is already a box list.
@@ -92,7 +93,10 @@ block_prefill_cached =: 3 : 0
   layerbox =. <"_ layer
   n_embd =. {: $ xv
   d_head =. n_embd % n_head
-  'kc vc' =. kv_empty n_head , d_head
+  NB. GQA: n_kv from Wk width (layer open: attn_n wq wk ...)
+  wk =. 2 { layer
+  n_kv =. ({: $ wk) % d_head
+  'kc vc' =. kv_empty n_kv , d_head
   outs =. (0 , n_embd) $ 0
   for_t. i. # xv do.
     x1 =. ,: t { xv

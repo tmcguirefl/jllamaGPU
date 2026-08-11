@@ -61,7 +61,7 @@ Layer / model shapes:
 ```text
 layer  = <"_ (attn_n ; wq ; wk ; wv ; wo ; ffn_n ; wg ; wu ; wd)
 model  = <"_ (hparams ; wte ; layers ; ln_f ; lm_head)
-hparams = n_vocab ; n_embd ; n_head ; n_layer ; n_ff ; theta
+hparams = n_vocab ; n_embd ; n_head ; n_layer ; n_ff ; theta ; n_head_kv
 ```
 
 Generate API: `m generate ids ; n_new` (numeric `;` is fine).

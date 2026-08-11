@@ -19,12 +19,12 @@ jllama reimplements a thin Llama-style decode path in J, validated against llama
 | **M10** | Real-model lab | pin F16 Llama MHA GGUF under `models/`; SPM tokenize; CLI English smoke | **done** |
 | **M11** | Server (opt) | thin HTTP/SSE wrapper around same engine as CLI | optional |
 | **M12** | Quant (opt) | dequant-to-f64 first (Q4/Q5/Q8), then optional faster paths | optional |
-| **M13** | GQA / larger 1B (opt) | `n_head_kv` path so Llama-3.2-1B-class models load | optional |
+| **M13** | GQA / larger 1B | `n_head_kv` path so Llama-3.2-1B-class models load | **done** |
 | **M14** | Second arch (opt) | shared core, second golden model (e.g. Qwen-dense) | optional |
 
 **Completed critical path:** M0 → M8 + **M10** (engine, CLI, real TinyStories lab).  
 **Deferred:** M9 performance (may touch J interpreter / LAPACK discussion).  
-**Optional:** M11–M14.
+**Done optional:** M13 GQA. **Still optional:** M11 server, M12 quant, M14 second arch.
 
 ## What “done” means for open milestones
 
@@ -79,10 +79,19 @@ Not claimed: full long-sequence greedy id match (f64 vs f16 drift), GQA 1B chat 
 - M12a: GGUF quant tensor → f64, reuse float graph
 - Later: faster kernels only if needed
 
-### M13 — GQA / larger 1B (optional)
+### M13 — GQA / larger 1B (**done**)
 
-- Support `n_head_kv < n_head` so Llama-3.2-1B-class F16 can load
-- Then pin a ~1B lab model under `models/`
+Delivered:
+
+- Attention derives `n_head_kv` from Wk/Wv width; expands KV heads (`expand_kv`) at score time
+- KV cache stores `n_head_kv` heads (not full `n_head`)
+- `hparams` includes trailing `n_head_kv` (legacy 6-item packs still accepted via `hp_open`)
+- `model_from_gguf` loads GQA when `llama.attention.head_count_kv` divides `head_count` and K/V widths match
+- Synthetic `make_layer` / `make_synthetic` optional `n_head_kv`
+- `test/test_m13.ijs` (7 tests): expand, attn/block/stack parity, generate==recompute
+- Version **0.13.0**
+
+Not claimed: a pinned ~1B F16 GQA file under `models/` (user supplies Llama-3.2-1B-class F16 when desired; RAM ~8GB f64 weights on M2 32GB). Still no quant (M12).
 
 ### M14 — Second arch (optional)
 
@@ -99,8 +108,8 @@ Not claimed: full long-sequence greedy id match (f64 vs f16 drift), GQA 1B chat 
 
 ## Suggested “what next” order
 
-1. **M13 GQA** if you want modern ~1B chat GGUFs  
-2. **M12 quant** if you only have Q4/Q5/Q8 files  
+1. **M12 quant** if you only have Q4/Q5/Q8 files  
+2. Pin a ~1B F16 GQA lab model under `models/` (manual download)  
 3. **M11 server** if you need a network client  
 4. **M9 perf** when ready to profile / discuss interpreter-level work  
 
@@ -118,4 +127,4 @@ Not claimed: full long-sequence greedy id match (f64 vs f16 drift), GQA 1B chat 
 | 0.8.x | M8 CLI |
 | 0.9.x | M9 perf (deferred) |
 | 0.10.x | M10 real-model lab |
-| 1.0? | CLI + real-model lab + optional GQA solid enough to call v1 |
+| 1.0? | CLI + real-model lab + GQA solid enough to call v1 |

@@ -29,10 +29,11 @@ test_load_hparams =: 3 : 0
   if. -. have_model '' do. 1 return. end.
   m =. model_from_gguf MODEL
   'hp wte layers ln_f lm_head' =. > m
-  'n_vocab n_embd n_head n_layer n_ff theta' =. hp
+  'n_vocab n_embd n_head n_layer n_ff theta n_head_kv' =. hp
   assert. 32000 = n_vocab
   assert. 288 = n_embd
   assert. 6 = n_head
+  assert. 6 = n_head_kv
   assert. 6 = n_layer
   assert. 768 = n_ff
   assert. 6 = # layers

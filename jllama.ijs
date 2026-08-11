@@ -4,8 +4,8 @@ NB.   /Applications/j9.8/bin/jconsole /Users/tomdevel/jdev/jllama/jllama.ijs
 
 cocurrent 'jllama'
 
-VERSION =: '0.10.0'
-MILESTONE =: 'M10'
+VERSION =: '0.13.0'
+MILESTONE =: 'M13'
 
 NB. Directory containing this script (works when loaded by full path).
 ROOT =: (jpath '~user') NB. placeholder overwritten below
@@ -46,7 +46,7 @@ jllama - Llama-style inference in J
   smoke      jllama_smoke ''
   test       jllama_test ''
   root       jllama_root ''
-  milestone  M10 real-model lab (stories15M F16 + Llama SPM)
+  milestone  M13 GQA (n_head_kv) + M10 lab model
 
 Locales:
   jllamatensor  mp silu softmax rmsnorm linear causal_mask allclose
@@ -74,7 +74,7 @@ Oracle (M6/M10):
   make -C labs oracle_greedy   NB. needs brew llama.cpp
   labs/run_oracle.sh test/fixtures/tiny_parity_f16.gguf ab 3 --ids 259
 
-Next: M9 performance (deferred) or optional server/quant
+Next: optional quant/server; M9 perf deferred
 
 jconsole: /Applications/j9.8/bin/jconsole
 trace:    load 'general/misc/trace'
@@ -130,8 +130,9 @@ smoke =: 3 : 0
   if. fexist fix do.
     g =. model_from_gguf_jllamagguf_ fix
     'hp wte layers ln_f lm_head' =. > g
-    'n_vocab n_embd n_head n_layer n_ff theta' =. hp
+    'n_vocab n_embd n_head n_layer n_ff theta n_head_kv' =. hp
     assert. 8 4 2 1 8 -: n_vocab , n_embd , n_head , n_layer , n_ff
+    assert. 2 = n_head_kv
     gids =. g generate_jllamamodel_ (0 1) ; 2
     assert. 4 = # gids
   end.
@@ -159,7 +160,7 @@ smoke =: 3 : 0
   i. 0 0
 )
 
-NB. M1-M8 unit tests (M6 needs tools/oracle_greedy)
+NB. M1-M13 unit tests (M6 needs tools/oracle_greedy)
 test =: 3 : 0
   loadcore ''
   jrequire 'test/test_tensor.ijs'
@@ -181,6 +182,8 @@ test =: 3 : 0
   r8 =. run_jllamatestm8_ ''
   jrequire 'test/test_m10.ijs'
   r10 =. run_jllamatestm10_ ''
+  jrequire 'test/test_m13.ijs'
+  r13 =. run_jllamatestm13_ ''
   assert. r1
   assert. r2
   assert. r3
@@ -190,6 +193,7 @@ test =: 3 : 0
   assert. r7
   assert. r8
   assert. r10
+  assert. r13
   smoutput 'jllama test OK  ' , version ''
   i. 0 0
 )

@@ -2,7 +2,7 @@
 
 | File | Milestone | Status |
 |------|-----------|--------|
-| `gguf.ijs` | M4 | **done** - F16/F32 GGUF reader + Llama model pack |
+| `gguf.ijs` | M4+M13 | **done** - F16/F32 GGUF reader + Llama MHA/GQA model pack |
 | `vocab.ijs` | M5+M10 | **done** - GPT-2 BPE + Llama SPM encode/decode |
 
 ## jllamagguf (M4)
@@ -16,7 +16,7 @@
 | `model_from_gguf` | path -> jllama model box |
 | `gguf_summary` | dump header/tensors |
 
-**Supported:** little-endian GGUF v3, `GGML_TYPE_F32` / `F16` only, Llama-arch dense MHA (`n_head = n_head_kv`).
+**Supported:** little-endian GGUF v3, `GGML_TYPE_F32` / `F16` only, Llama-arch dense MHA or GQA (`n_head_kv` divides `n_head`).
 
 **Layout:** ggml 2d `ne0` contiguous; non-embd weights become `n_in x n_out` for `x mp w`. `token_embd.weight` stays `n_vocab x n_embd`.
 

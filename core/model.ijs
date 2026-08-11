@@ -1,9 +1,11 @@
-NB. jllama tiny model stack + greedy generate (M3)
+NB. jllama tiny model stack + greedy generate (M3 + M13 GQA)
 NB.
 NB. Model is ONE scalar box:
 NB.   <"_ (hparams ; wte ; layers ; ln_f ; lm_head)
-NB. hparams = open list: n_vocab ; n_embd ; n_head ; n_layer ; n_ff ; theta
+NB. hparams = open list:
+NB.   n_vocab ; n_embd ; n_head ; n_layer ; n_ff ; theta ; n_head_kv
 NB. layers  = list of layer boxes (each layer is one scalar box of 9 weights)
+NB. Under GQA, Wk/Wv are n_embd x (n_head_kv * d_head); Wq/Wo stay square.
 NB.
 NB. Synthetic models use deterministic integer-derived weights (no RNG).
 NB.
@@ -40,16 +42,26 @@ packw =: 4 : 0
   shape $ 0.02 * <: 23 | seed + 3 * i. n
 )
 
-NB. y = n_embd ; n_head ; n_ff ; seed
+NB. y = n_embd ; n_head ; n_ff ; seed [; n_head_kv]
 NB. returns ONE scalar box of 9 weights
 make_layer =: 3 : 0
-  'n_embd n_head n_ff seed' =. y
+  n_head_kv =. _1
+  select. # y
+  case. 4 do. 'n_embd n_head n_ff seed' =. y
+  case. 5 do. 'n_embd n_head n_ff seed n_head_kv' =. y
+  case. do. 'make_layer: bad arg count' assert 0
+  end.
+  if. n_head_kv < 0 do. n_head_kv =. n_head end.
   'make_layer: bad head split' assert 0 = n_head | n_embd
+  'make_layer: n_head_kv must divide n_head' assert 0 = n_head_kv | n_head
+  'make_layer: n_head_kv > 0' assert n_head_kv > 0
+  d_head =. n_embd % n_head
+  n_kv_dim =. n_head_kv * d_head
   attn_n =. n_embd $ 1 + 0.01 * i. n_embd
   ffn_n =. n_embd $ 1 + 0.01 * |. i. n_embd
   wq =. (n_embd , n_embd) packw seed + 1
-  wk =. (n_embd , n_embd) packw seed + 2
-  wv =. (n_embd , n_embd) packw seed + 3
+  wk =. (n_embd , n_kv_dim) packw seed + 2
+  wv =. (n_embd , n_kv_dim) packw seed + 3
   wo =. (n_embd , n_embd) packw seed + 4
   wg =. (n_embd , n_ff) packw seed + 5
   wu =. (n_embd , n_ff) packw seed + 6
@@ -57,25 +69,31 @@ make_layer =: 3 : 0
   <"_ (attn_n ; wq ; wk ; wv ; wo ; ffn_n ; wg ; wu ; wd)
 )
 
-NB. y = n_vocab ; n_embd ; n_head ; n_layer ; n_ff [; theta] [; seed]
+NB. y = n_vocab ; n_embd ; n_head ; n_layer ; n_ff
+NB.     [; theta] [; seed] [; n_head_kv]
 NB. returns ONE model box
+NB. Trailing optionals in order: theta, seed, n_head_kv
 make_synthetic =: 3 : 0
   theta =. DEFAULT_THETA
   seed =. 0
+  n_head_kv =. _1
   select. # y
   case. 5 do. 'n_vocab n_embd n_head n_layer n_ff' =. y
   case. 6 do. 'n_vocab n_embd n_head n_layer n_ff theta' =. y
   case. 7 do. 'n_vocab n_embd n_head n_layer n_ff theta seed' =. y
+  case. 8 do. 'n_vocab n_embd n_head n_layer n_ff theta seed n_head_kv' =. y
   case. do. 'make_synthetic: bad arg count' assert 0
   end.
+  if. n_head_kv < 0 do. n_head_kv =. n_head end.
+  'make_synthetic: n_head_kv must divide n_head' assert 0 = n_head_kv | n_head
   wte =. (n_vocab , n_embd) packw seed + 100
   layers =. 0 $ a:
   for_i. i. n_layer do.
-    layers =. layers , make_layer n_embd ; n_head ; n_ff ; seed + 1000 + 50 * i
+    layers =. layers , make_layer n_embd ; n_head ; n_ff ; (seed + 1000 + 50 * i) ; n_head_kv
   end.
   ln_f =. n_embd $ 1 + 0.005 * i. n_embd
   lm_head =. (n_embd , n_vocab) packw seed + 200
-  hparams =. n_vocab ; n_embd ; n_head ; n_layer ; n_ff ; theta
+  hparams =. n_vocab ; n_embd ; n_head ; n_layer ; n_ff ; theta ; n_head_kv
   <"_ (hparams ; wte ; layers ; ln_f ; lm_head)
 )
 
@@ -103,11 +121,22 @@ logits_all =: 4 : 0
   h mp lm_head
 )
 
+NB. Unpack hparams; accept legacy 6-item (MHA) packs
+hp_open =: 3 : 0
+  if. 7 = # y do.
+    y return.
+  end.
+  if. 6 = # y do.
+    y , 2 { y return.
+  end.
+  'hp_open: bad hparams length' assert 0
+)
+
 NB. model forward_full ids -> hidden
 forward_full =: 4 : 0
   model =. x
   'hp wte layers ln_f lm_head' =. > model
-  'n_vocab n_embd n_head n_layer n_ff theta' =. hp
+  'n_vocab n_embd n_head n_layer n_ff theta n_head_kv' =. hp_open hp
   h =. model embed y
   for_L. layers do.
     h =. block_full (<h) , (<n_head) , L , (<theta)
@@ -120,7 +149,7 @@ NB. caches = list of per-layer (<kc;vc>) boxes
 forward_prefill =: 4 : 0
   model =. x
   'hp wte layers ln_f lm_head' =. > model
-  'n_vocab n_embd n_head n_layer n_ff theta' =. hp
+  'n_vocab n_embd n_head n_layer n_ff theta n_head_kv' =. hp_open hp
   h =. model embed y
   caches =. 0 $ a:
   for_L. layers do.
@@ -136,7 +165,7 @@ forward_step =: 4 : 0
   model =. x
   'id caches pos' =. y
   'hp wte layers ln_f lm_head' =. > model
-  'n_vocab n_embd n_head n_layer n_ff theta' =. hp
+  'n_vocab n_embd n_head n_layer n_ff theta n_head_kv' =. hp_open hp
   h =. model embed , id
   caches2 =. 0 $ a:
   i =. 0

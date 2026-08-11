@@ -6,9 +6,9 @@ Array ops and transformer math.
 |------|-----------|--------|
 | `tensor.ijs` | M0-M1 | done |
 | `rope.ijs` | M2 | done |
-| `attention.ijs` | M2 | done |
-| `block.ijs` | M3 | done - SwiGLU + pre-norm block |
-| `model.ijs` | M3 | done - stack + generate |
+| `attention.ijs` | M2+M13 | done - MHA/GQA + KV |
+| `block.ijs` | M3+M13 | done - SwiGLU + pre-norm block (GQA) |
+| `model.ijs` | M3+M13 | done - stack + generate + GQA hparams |
 | `sample.ijs` | M7 | **done** - temp / top-k / top-p / EOS |
 
 ## Locales
@@ -21,9 +21,11 @@ Array ops and transformer math.
 
 `rope` `rotate_half`
 
-### jllamaattn (M2)
+### jllamaattn (M2+M13)
 
-`mha_full` `mha_step` `mha_prefill_cached` `kv_empty`
+`mha_full` `mha_step` `mha_prefill_cached` `kv_empty` `expand_kv` `project_qkv`
+
+GQA: Wk/Wv may be narrower; cache is `n_past x n_head_kv x d_head`.
 
 ### jllamablock (M3)
 
@@ -68,7 +70,7 @@ m generate_sample_jllamamodel_ (<ids) , (<n_new) , (<cfg)
 
 Model (one scalar box):
 `<"_ (hparams ; wte ; layers ; ln_f ; lm_head)`  
-hparams: `n_vocab; n_embd; n_head; n_layer; n_ff; theta`
+hparams: `n_vocab; n_embd; n_head; n_layer; n_ff; theta; n_head_kv`
 
 See `docs/conventions.md` for why nested args use `(<a),(<b),box` not chained `;`.
 

@@ -41,7 +41,7 @@ Inside the session:
 ```j
 jllama_help ''
 jllama_smoke ''
-jllama_test ''     NB. M1-M8 unit tests (M6 needs tools/oracle_greedy)
+jllama_test ''     NB. M1-M13 unit tests (M6 needs tools/oracle_greedy)
 
 NB. synthetic or fixture GGUF generate + tokenize
 loadcore_jllama_ ''
@@ -68,7 +68,7 @@ labs/run_oracle.sh test/fixtures/tiny_parity_f16.gguf ab 3 --ids 259
 |----------|-------------------------|
 | One Llama-ish dense arch | Model zoo / MoE / VLM |
 | GGUF F16 (F32) weights | ggml backends (Metal/CUDA) |
-| RMSNorm, RoPE, MHA, SwiGLU | Flash-attention kernels |
+| RMSNorm, RoPE, MHA/GQA, SwiGLU | Flash-attention kernels |
 | KV-cache prefill + decode | Quant matmul kernels (dequant later) |
 | Greedy + basic sampling | GBNF / chat Jinja |
 | Greedy parity vs llama.cpp | Training |

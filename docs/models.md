@@ -32,7 +32,7 @@ Not a real LM — only for loader/shape/generate smoke.
 |-------|--------|
 | Path | `models/stories15M.F16.gguf` (gitignored) |
 | Source | [shibatch/stories-converted](https://huggingface.co/shibatch/stories-converted) → `stories15M.F16.gguf` |
-| Why this file | **Llama arch + MHA** (`n_head = n_head_kv = 6`), **F16**, ~47 MB — fits jllama v1 (no GQA, no quant) |
+| Why this file | **Llama arch + MHA** (`n_head = n_head_kv = 6`), **F16**, ~47 MB — small English lab; GQA supported from M13 |
 | Arch | llama dense MHA |
 | Hparams | n_vocab=32000, n_embd=288, n_head=6, n_layer=6, n_ff=768, rope θ=10000, rms_eps=1e-5, ctx=128 |
 | Tokenizer | `tokenizer.ggml.model = llama` (SentencePiece-style SPM) |
@@ -60,20 +60,23 @@ Expected: English-ish story continuation (not fixture gibberish).
 
 - SPM encode matches libllama for lab prompts (e.g. `Once upon a time` → `1 9038 2501 263 931`).
 - Greedy generate matches oracle for a **short prefix** (first ~4 new tokens observed). Longer runs can drift: jllama math is **f64**; llama.cpp is largely f16/f32 kernels.
-- Modern chat models (Llama-3.2-1B, etc.) usually need **GQA** and/or **quant** — out of scope until those milestones.
+- Modern chat models (Llama-3.2-1B, etc.) need **GQA** (M13 done for load/forward) and often **quant** (M12) for practical size.
 
-### Why not Llama-3.2-1B F16 first?
+### GQA / larger models (M13)
+
+jllama loads Llama GQA when `n_head_kv` divides `n_head` and attn_k/v widths are `n_head_kv * d_head`. No GQA fixture is shipped; use any F16 Llama GGUF you install under `models/`.
 
 | Requirement | stories15M | Llama-3.2-1B class |
 |-------------|------------|---------------------|
 | `general.architecture=llama` | yes | yes |
 | F16 GGUF | yes | sometimes |
-| MHA (`n_head=n_head_kv`) | **yes** | **no (GQA)** |
+| Attention | MHA | GQA (supported M13) |
 | Size on M2 32GB as J f64 | ~0.12 GB weights | ~8 GB weights |
+| Quant | not needed | often needed (M12) |
 
 ## Lab / synthetic
 
 | Name | Notes |
 |------|--------|
 | `make_synthetic` | Deterministic tiny weights — M2–M3 |
-| `model_from_gguf` | Llama GGUF F16/F32 MHA — M4+ |
+| `model_from_gguf` | Llama GGUF F16/F32 MHA/GQA — M4+M13 |

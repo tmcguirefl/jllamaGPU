@@ -1,4 +1,4 @@
-NB. jllama GGUF F16/F32 loader (M4)
+NB. jllama GGUF F16/F32 loader (M4 + M13 GQA)
 NB.
 NB. Spec: https://github.com/ggml-org/ggml/blob/master/docs/gguf.md
 NB. Little-endian GGUF v3. F32 and F16 tensors only (no quant).
@@ -11,7 +11,7 @@ NB.     -> <"_ (meta ; tinfos ; align ; data_off ; bytes)
 NB.   load gguf_meta key
 NB.   load gguf_tensor name   -> J f64 array (jllama layout)
 NB.   gguf_names load
-NB.   model_from_gguf path    -> jllama model box (Llama dense MHA)
+NB.   model_from_gguf path    -> jllama model box (Llama dense MHA/GQA)
 NB.   gguf_summary path
 NB.
 NB. Weight layout:
@@ -358,7 +358,10 @@ model_from_gguf =: 3 : 0
   n_ff =. load gguf_meta 'llama.feed_forward_length'
   n_head =. load gguf_meta 'llama.attention.head_count'
   n_head_kv =. load gguf_meta_default 'llama.attention.head_count_kv' ; n_head
-  'model_from_gguf: GQA not supported in M4 (need n_head=n_head_kv)' assert n_head = n_head_kv
+  'model_from_gguf: n_head_kv must divide n_head' assert 0 = n_head_kv | n_head
+  'model_from_gguf: n_head_kv > 0' assert n_head_kv > 0
+  'model_from_gguf: n_embd not divisible by n_head' assert 0 = n_head | n_embd
+  d_head =. n_embd % n_head
   theta =. load gguf_meta_default 'llama.rope.freq_base' ; DEFAULT_THETA
   wte =. load gguf_tensor 'token_embd.weight'
   n_vocab =. # wte
@@ -379,6 +382,9 @@ model_from_gguf =: 3 : 0
     wq =. load gguf_tensor pref , 'attn_q.weight'
     wk =. load gguf_tensor pref , 'attn_k.weight'
     wv =. load gguf_tensor pref , 'attn_v.weight'
+    'model_from_gguf: bad attn_k width' assert ({: $ wk) = n_head_kv * d_head
+    'model_from_gguf: bad attn_v width' assert ({: $ wv) = n_head_kv * d_head
+    'model_from_gguf: bad attn_q width' assert ({: $ wq) = n_head * d_head
     wo =. load gguf_tensor pref , 'attn_output.weight'
     ffn_n =. load gguf_tensor pref , 'ffn_norm.weight'
     wg =. load gguf_tensor pref , 'ffn_gate.weight'
@@ -387,7 +393,7 @@ model_from_gguf =: 3 : 0
     layer =. <"_ (attn_n ; wq ; wk ; wv ; wo ; ffn_n ; wg ; wu ; wd)
     layers =. layers , layer
   end.
-  hparams =. n_vocab ; n_embd ; n_head ; n_layer ; n_ff ; theta
+  hparams =. n_vocab ; n_embd ; n_head ; n_layer ; n_ff ; theta ; n_head_kv
   <"_ (hparams ; wte ; layers ; ln_f ; lm_head)
 )
 
