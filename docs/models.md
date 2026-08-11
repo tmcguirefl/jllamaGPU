@@ -26,17 +26,20 @@ Not a real LM - only for loader/shape/generate smoke.
 | Meta | `test/fixtures/tiny_parity_f16.meta.txt` |
 | Oracle | `tools/oracle_greedy` via `labs/run_oracle.sh` (libllama) |
 
-## Planned primary (larger M6+)
+## Planned primary (M10 real-model lab)
 
 | Field | Value |
 |-------|--------|
-| Class | ~1B dense Llama-arch |
+| Class | ~0.5B–1B dense Llama-arch |
 | File dtype | F16 GGUF |
 | Machine | M2 32 GB (see hardware.md) |
-| Path | _TBD - download into `models/` (gitignored)_ |
-| Oracle | same `oracle_greedy` on the real file |
+| Path | _TBD — download into `models/` (gitignored)_ |
+| Driver | M8 `jllama_cli` |
+| Oracle | optional `oracle_greedy` / `llama-cli` spot-check |
 
 When a file is chosen, add: URL, filename, sha256, `n_vocab`, `n_embd`, `n_layer`, `n_head`, `n_head_kv`, `n_ff`, `n_ctx_train`, rope settings.
+
+Until M10, day-to-day work uses the **M6 parity fixture** (no large download).
 
 ## Lab / synthetic
 

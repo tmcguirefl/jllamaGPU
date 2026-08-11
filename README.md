@@ -44,14 +44,15 @@ labs/run_oracle.sh test/fixtures/tiny_parity_f16.gguf ab 3 --ids 259
 
 ## Project goal (v1)
 
-| In scope | Out of scope |
-|----------|----------------|
+| In scope | Out of scope (for now) |
+|----------|-------------------------|
 | One Llama-ish dense arch | Model zoo / MoE / VLM |
 | GGUF F16 (F32) weights | ggml backends (Metal/CUDA) |
-| RMSNorm, RoPE, MHA/GQA, SwiGLU | Flash-attention kernels |
-| KV-cache prefill + decode | Quant matmul kernels (maybe dequant later) |
-| Greedy + basic sampling | Server / GBNF / chat Jinja |
+| RMSNorm, RoPE, MHA, SwiGLU | Flash-attention kernels |
+| KV-cache prefill + decode | Quant matmul kernels (dequant later) |
+| Greedy + basic sampling | GBNF / chat Jinja |
 | Greedy parity vs llama.cpp | Training |
+| **CLI** (`jllama_cli`) | **Server** (optional later milestone) |
 
 ## Test model (this machine: MacBook Pro M2, 32 GB)
 
@@ -66,17 +67,23 @@ J has no float32 arrays in 64-bit J; loaded F16/F32 weights become **float64** (
 ## Layout
 
 ```text
-jllama.ijs          NB. entry: load path, help, smoke
-core/               NB. array ops, transformer (milestones M1+)
-io/                 NB. GGUF, vocab (M4-M5)
+jllama.ijs          NB. entry: load path, help, smoke, test
+core/               NB. tensor, rope, attn, block, sample, model
+io/                 NB. GGUF, vocab
 test/               NB. unit + parity tests
-docs/               NB. design notes
-labs/               NB. scratch / experiments
+docs/               NB. milestones, hardware, models, conventions
+labs/               NB. fixtures, oracle, experiments
+bin/                NB. shell wrappers (M8+)
+models/             NB. large GGUFs (gitignored)
 ```
 
 ## Milestones
 
-See [docs/milestones.md](docs/milestones.md).
+| Now | Next | Later |
+|-----|------|--------|
+| **M0–M7 done** (engine + sample + fixture parity) | **M8 CLI** | M9 perf → M10 ~1B lab → optional server/quant |
+
+Full board: [docs/milestones.md](docs/milestones.md).
 
 ## References
 

@@ -69,7 +69,7 @@ Oracle (M6):
   make -C labs oracle_greedy   NB. needs brew llama.cpp
   labs/run_oracle.sh test/fixtures/tiny_parity_f16.gguf ab 3 --ids 259
 
-Next: M8 performance
+Next: M8 jllama_cli (shell front-end)
 
 jconsole: /Applications/j9.8/bin/jconsole
 trace:    load 'general/misc/trace'
