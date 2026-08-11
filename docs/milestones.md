@@ -15,15 +15,16 @@ jllama reimplements a thin Llama-style decode path in J, validated against llama
 | **M6** | Parity (fixture) | greedy tokens match llama.cpp on tiny F16 fixture | **done** |
 | **M7** | Sampling | temp / top-k / top-p, EOS stop | **done** |
 | **M8** | **CLI** | `jllama_cli` shell entry: model, prompt, n, sample flags, print text/ids | **done** |
-| **M9** | Performance | profile CLI path; fewer copies; LAPACK/`mp` where useful | planned |
-| **M10** | Real-model lab | pin ~0.5B–1B F16 GGUF under `models/`; smoke + optional greedy spot-check | planned |
+| **M9** | Performance | profile CLI path; fewer copies; LAPACK/`mp` where useful | **deferred** |
+| **M10** | Real-model lab | pin F16 Llama MHA GGUF under `models/`; SPM tokenize; CLI English smoke | **done** |
 | **M11** | Server (opt) | thin HTTP/SSE wrapper around same engine as CLI | optional |
 | **M12** | Quant (opt) | dequant-to-f64 first (Q4/Q5/Q8), then optional faster paths | optional |
-| **M13** | Second arch (opt) | shared core, second golden model (e.g. Qwen-dense) | optional |
+| **M13** | GQA / larger 1B (opt) | `n_head_kv` path so Llama-3.2-1B-class models load | optional |
+| **M14** | Second arch (opt) | shared core, second golden model (e.g. Qwen-dense) | optional |
 
-**Completed critical path:** M0 → M8 (engine + CLI).  
-**Product path next:** M9 → M10.  
-**Optional:** M11–M13.
+**Completed critical path:** M0 → M8 + **M10** (engine, CLI, real TinyStories lab).  
+**Deferred:** M9 performance (may touch J interpreter / LAPACK discussion).  
+**Optional:** M11–M14.
 
 ## What “done” means for open milestones
 
@@ -42,26 +43,32 @@ Delivered:
 - Flags: model, prompt (or `-f`), `n_predict`, temp/top-k/top-p/seed, optional EOS, `--tokens`
 - Uses `model_from_gguf`, `vocab_from_gguf`, `encode`, `generate_sample`, `decode`
 - Works on `test/fixtures/tiny_parity_f16.gguf` (greedy ids match M6 oracle)
-- `test/test_m8.ijs` (10 tests); version **0.8.0**
+- `test/test_m8.ijs` (10 tests)
 - **Out of scope (still):** chat templates, REPL conversation, GBNF, HTTP, GPU
 
-### M9 — Performance
+### M9 — Performance (**deferred**)
 
-- Profile prefill vs decode on CLI path (tiny fixture + optional real model)
+Parked: may involve J interpreter / LAPACK choices beyond app-level tweaks.
+
+- Profile prefill vs decode on CLI path (fixture + stories15M)
 - Cut obvious J copies / re-boxes on hot path
-- Try `math/lapack2` (or equivalent) for large `mp` if win is real
-- Record before/after notes in `docs/` (tok/s ballpark on this M2)
+- Try `math/lapack2` for large `mp` if win is real
+- Record tok/s notes in `docs/`
 
-### M10 — Real-model lab
+### M10 — Real-model lab (**done**)
 
-- Choose and document one ~0.5B–1B **Llama-arch F16** GGUF in `docs/models.md` (URL, sha256, hparams)
-- File lives in `models/` (gitignored)
-- CLI can load it and generate short completions
-- Optional: greedy spot-check vs `oracle_greedy` / `llama-cli` on a short prompt (best-effort; not full CI if model is huge)
+Delivered:
+
+- Primary file: `models/stories15M.F16.gguf` (~15M TinyStories Llama MHA F16) — see [models.md](models.md)
+- **Llama SPM tokenizer** in `jllamavocab` (`tokenizer.ggml.model=llama`) alongside GPT-2 BPE
+- CLI English continuation: `bin/jllama_cli -m models/stories15M.F16.gguf -p "Once upon a time" -n 32`
+- Encode parity vs `tools/oracle_tokenize`; short greedy prefix vs `tools/oracle_greedy`
+- `test/test_m10.ijs` (skips if model file absent)
+- Version **0.10.0**
+
+Not claimed: full long-sequence greedy id match (f64 vs f16 drift), GQA 1B chat models, chat templates.
 
 ### M11 — Server (optional)
-
-Only after CLI is pleasant:
 
 - Same completion engine as CLI
 - Minimal HTTP (e.g. one `/completion` or SSE stream)
@@ -72,7 +79,12 @@ Only after CLI is pleasant:
 - M12a: GGUF quant tensor → f64, reuse float graph
 - Later: faster kernels only if needed
 
-### M13 — Second arch (optional)
+### M13 — GQA / larger 1B (optional)
+
+- Support `n_head_kv < n_head` so Llama-3.2-1B-class F16 can load
+- Then pin a ~1B lab model under `models/`
+
+### M14 — Second arch (optional)
 
 - Shared tensor/attn/sample; arch-specific load + naming
 
@@ -82,15 +94,15 @@ Only after CLI is pleasant:
 - Locale names: no `_` (`jllamamodel`, not `jllama_model`)
 - Nested packs: `(<a),(<b),box` — not chained `;` across box lists
 - jconsole: `/Applications/j9.8/bin/jconsole` full path
-- Oracle: Homebrew llama.cpp + `tools/oracle_greedy` for greedy id parity
+- Oracle: Homebrew llama.cpp + `tools/oracle_greedy` / `oracle_tokenize`
 - Test model sizing: [hardware.md](hardware.md)
 
 ## Suggested “what next” order
 
-1. **M9 perf** — profile the CLI path people actually run  
-2. **M10 real GGUF** — one documented ~1B F16 when you want a real LM feel  
-3. **M11 server** only if you need a networked client  
-4. **M12/M13** as interest/need dictates  
+1. **M13 GQA** if you want modern ~1B chat GGUFs  
+2. **M12 quant** if you only have Q4/Q5/Q8 files  
+3. **M11 server** if you need a network client  
+4. **M9 perf** when ready to profile / discuss interpreter-level work  
 
 ## Version mapping
 
@@ -104,5 +116,6 @@ Only after CLI is pleasant:
 | 0.6.x | M6 |
 | 0.7.x | M7 |
 | 0.8.x | M8 CLI |
-| 0.9.x | M9 perf |
-| 1.0? | CLI + real-model lab solid enough to call v1 |
+| 0.9.x | M9 perf (deferred) |
+| 0.10.x | M10 real-model lab |
+| 1.0? | CLI + real-model lab + optional GQA solid enough to call v1 |

@@ -12,11 +12,22 @@ Not a port of the llama.cpp C++ codebase. jllama reimplements a **thin vertical 
 
 ## Quick start
 
-### CLI (M8)
+### CLI (M8 + M10)
 
 ```sh
+# Real TinyStories lab model (~47MB F16) — English continuation
+bin/jllama_cli -m models/stories15M.F16.gguf -p "Once upon a time" -n 32
+
+# Fixture plumbing check (gibberish text is OK)
 bin/jllama_cli -m test/fixtures/tiny_parity_f16.gguf -p ab -n 3 --tokens
 bin/jllama_cli --help
+```
+
+Download the lab model (once):
+
+```sh
+export PATH="$HOME/.local/bin:$PATH"   # after: uv tool install huggingface_hub
+hf download shibatch/stories-converted stories15M.F16.gguf --local-dir models
 ```
 
 ### REPL
@@ -92,7 +103,7 @@ models/             NB. large GGUFs (gitignored)
 
 | Now | Next | Later |
 |-----|------|--------|
-| **M0–M8 done** (engine + sample + fixture parity + CLI) | **M9 perf** | M10 ~1B lab → optional server/quant |
+| **M0–M8 + M10 done** (engine, CLI, stories15M lab) | optional GQA / quant / server | M9 perf deferred |
 
 Full board: [docs/milestones.md](docs/milestones.md).
 

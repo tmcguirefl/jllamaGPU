@@ -11,7 +11,7 @@
 | Regen | `python3 labs/make_fixture_gguf.py` |
 | Expect | `test/fixtures/tiny_llama_f16.expect.txt` |
 
-Not a real LM - only for loader/shape/generate smoke.
+Not a real LM — only for loader/shape/generate smoke.
 
 ## Parity fixture (M6)
 
@@ -26,24 +26,54 @@ Not a real LM - only for loader/shape/generate smoke.
 | Meta | `test/fixtures/tiny_parity_f16.meta.txt` |
 | Oracle | `tools/oracle_greedy` via `labs/run_oracle.sh` (libllama) |
 
-## Planned primary (M10 real-model lab)
+## Primary lab model (M10)
 
 | Field | Value |
 |-------|--------|
-| Class | ~0.5B–1B dense Llama-arch |
-| File dtype | F16 GGUF |
-| Machine | M2 32 GB (see hardware.md) |
-| Path | _TBD — download into `models/` (gitignored)_ |
-| Driver | M8 `jllama_cli` |
-| Oracle | optional `oracle_greedy` / `llama-cli` spot-check |
+| Path | `models/stories15M.F16.gguf` (gitignored) |
+| Source | [shibatch/stories-converted](https://huggingface.co/shibatch/stories-converted) → `stories15M.F16.gguf` |
+| Why this file | **Llama arch + MHA** (`n_head = n_head_kv = 6`), **F16**, ~47 MB — fits jllama v1 (no GQA, no quant) |
+| Arch | llama dense MHA |
+| Hparams | n_vocab=32000, n_embd=288, n_head=6, n_layer=6, n_ff=768, rope θ=10000, rms_eps=1e-5, ctx=128 |
+| Tokenizer | `tokenizer.ggml.model = llama` (SentencePiece-style SPM) |
+| Training domain | TinyStories-style English |
+| Driver | `bin/jllama_cli` |
+| Oracle | `tools/oracle_tokenize`, `tools/oracle_greedy` |
 
-When a file is chosen, add: URL, filename, sha256, `n_vocab`, `n_embd`, `n_layer`, `n_head`, `n_head_kv`, `n_ff`, `n_ctx_train`, rope settings.
+### Install
 
-Until M10, day-to-day work uses the **M6 parity fixture** (no large download).
+```sh
+# hf CLI (once): uv tool install huggingface_hub
+export PATH="$HOME/.local/bin:$PATH"
+hf download shibatch/stories-converted stories15M.F16.gguf --local-dir models
+```
+
+### Smoke
+
+```sh
+bin/jllama_cli -m models/stories15M.F16.gguf -p "Once upon a time" -n 32
+```
+
+Expected: English-ish story continuation (not fixture gibberish).
+
+### Parity notes
+
+- SPM encode matches libllama for lab prompts (e.g. `Once upon a time` → `1 9038 2501 263 931`).
+- Greedy generate matches oracle for a **short prefix** (first ~4 new tokens observed). Longer runs can drift: jllama math is **f64**; llama.cpp is largely f16/f32 kernels.
+- Modern chat models (Llama-3.2-1B, etc.) usually need **GQA** and/or **quant** — out of scope until those milestones.
+
+### Why not Llama-3.2-1B F16 first?
+
+| Requirement | stories15M | Llama-3.2-1B class |
+|-------------|------------|---------------------|
+| `general.architecture=llama` | yes | yes |
+| F16 GGUF | yes | sometimes |
+| MHA (`n_head=n_head_kv`) | **yes** | **no (GQA)** |
+| Size on M2 32GB as J f64 | ~0.12 GB weights | ~8 GB weights |
 
 ## Lab / synthetic
 
 | Name | Notes |
 |------|--------|
-| `make_synthetic` | Deterministic tiny weights - M2-M3 |
-| `model_from_gguf` | Llama GGUF F16/F32 - M4 |
+| `make_synthetic` | Deterministic tiny weights — M2–M3 |
+| `model_from_gguf` | Llama GGUF F16/F32 MHA — M4+ |

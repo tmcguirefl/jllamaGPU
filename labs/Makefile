@@ -1,7 +1,6 @@
-# Build jllama M6 oracle against Homebrew llama.cpp + ggml
+# Build jllama oracles against Homebrew llama.cpp + ggml
 ROOT := $(abspath ..)
-BIN  := $(ROOT)/tools/oracle_greedy
-SRC  := oracle_greedy.c
+TOOLS := $(ROOT)/tools
 
 LLAMA_PREFIX ?= $(shell brew --prefix llama.cpp 2>/dev/null)
 GGML_PREFIX  ?= $(shell brew --prefix ggml 2>/dev/null)
@@ -12,14 +11,19 @@ LDFLAGS  += -L$(LLAMA_PREFIX)/lib -L$(GGML_PREFIX)/lib
 LDLIBS   += -lllama -lggml -lggml-base
 RPATH    += -Wl,-rpath,$(LLAMA_PREFIX)/lib -Wl,-rpath,$(GGML_PREFIX)/lib
 
-.PHONY: all clean oracle_greedy
+.PHONY: all clean oracle_greedy oracle_tokenize
 
-all: $(BIN)
-oracle_greedy: $(BIN)
+all: oracle_greedy oracle_tokenize
+oracle_greedy: $(TOOLS)/oracle_greedy
+oracle_tokenize: $(TOOLS)/oracle_tokenize
 
-$(BIN): $(SRC)
+$(TOOLS)/oracle_greedy: oracle_greedy.c
+	mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) $(CPPFLAGS) -o $@ $< $(LDFLAGS) $(LDLIBS) $(RPATH)
+
+$(TOOLS)/oracle_tokenize: oracle_tokenize.c
 	mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) $(CPPFLAGS) -o $@ $< $(LDFLAGS) $(LDLIBS) $(RPATH)
 
 clean:
-	rm -f $(BIN)
+	rm -f $(TOOLS)/oracle_greedy $(TOOLS)/oracle_tokenize

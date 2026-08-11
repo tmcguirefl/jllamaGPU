@@ -3,7 +3,7 @@
 | File | Milestone | Status |
 |------|-----------|--------|
 | `gguf.ijs` | M4 | **done** - F16/F32 GGUF reader + Llama model pack |
-| `vocab.ijs` | M5 | **done** - GPT-2-style byte BPE encode/decode |
+| `vocab.ijs` | M5+M10 | **done** - GPT-2 BPE + Llama SPM encode/decode |
 
 ## jllamagguf (M4)
 
@@ -38,7 +38,11 @@ m generate_jllamamodel_ (0 1) ; 3
 | `decode` | `vocab decode ids` -> text |
 | `vocab_token` / `vocab_bos` / `vocab_eos` / `vocab_unk` | helpers |
 
-**Supported:** `tokenizer.ggml.model` = `gpt2` or `bpe`; pre = whole-string byte BPE (GPT-2 `bytes_to_unicode`). No full GPT-2 regex pre-tokenizer yet; SPM/`llama` tokenizer model deferred.
+**Supported:**
+- `tokenizer.ggml.model` = `gpt2` or `bpe` — whole-string byte BPE (GPT-2 `bytes_to_unicode`)
+- `tokenizer.ggml.model` = `llama` — SentencePiece-style SPM (llama.cpp `llm_tokenizer_spm`), scores + U+2581 space escape, byte fallback `<0xNN>`
+
+No full GPT-2 regex pre-tokenizer yet.
 
 **Fixture:** `test/fixtures/tiny_bpe_vocab.gguf` (regen via `python3 labs/make_fixture_vocab.py`).
 

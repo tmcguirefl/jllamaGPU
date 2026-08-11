@@ -4,8 +4,8 @@ NB.   /Applications/j9.8/bin/jconsole /Users/tomdevel/jdev/jllama/jllama.ijs
 
 cocurrent 'jllama'
 
-VERSION =: '0.8.0'
-MILESTONE =: 'M8'
+VERSION =: '0.10.0'
+MILESTONE =: 'M10'
 
 NB. Directory containing this script (works when loaded by full path).
 ROOT =: (jpath '~user') NB. placeholder overwritten below
@@ -46,7 +46,7 @@ jllama - Llama-style inference in J
   smoke      jllama_smoke ''
   test       jllama_test ''
   root       jllama_root ''
-  milestone  M8 jllama_cli (shell front-end)
+  milestone  M10 real-model lab (stories15M F16 + Llama SPM)
 
 Locales:
   jllamatensor  mp silu softmax rmsnorm linear causal_mask allclose
@@ -56,11 +56,11 @@ Locales:
   jllamamodel   make_synthetic generate generate_sample
   jllamasample  sample_next top_k_filter top_p_filter
   jllamagguf    gguf_load gguf_tensor model_from_gguf
-  jllamavocab   vocab_from_gguf encode decode
+  jllamavocab   vocab_from_gguf encode decode (gpt2 BPE + llama SPM)
   jllamacli     parse_args run main (after loadcli)
 
 CLI:
-  bin/jllama_cli -m MODEL.gguf -p PROMPT -n 16 [--temp ...]
+  bin/jllama_cli -m models/stories15M.F16.gguf -p "Once upon a time" -n 32
   bin/jllama_cli --help
 
 Example:
@@ -70,15 +70,15 @@ Example:
   cfg =. 0.8 ; 40 ; 0.95 ; 1 ; _1 ; 1
   m generate_sample_jllamamodel_ (<1 2 3) , (<8) , (<cfg)
 
-Oracle (M6):
+Oracle (M6/M10):
   make -C labs oracle_greedy   NB. needs brew llama.cpp
   labs/run_oracle.sh test/fixtures/tiny_parity_f16.gguf ab 3 --ids 259
 
-Next: M9 performance (profile CLI path)
+Next: M9 performance (deferred) or optional server/quant
 
 jconsole: /Applications/j9.8/bin/jconsole
 trace:    load 'general/misc/trace'
-docs:     README.md  docs/hardware.md  docs/milestones.md
+docs:     README.md  docs/hardware.md  docs/milestones.md  docs/models.md
 )
 
 help =: 3 : 0
@@ -179,6 +179,8 @@ test =: 3 : 0
   jrequire 'cli/cli.ijs'
   jrequire 'test/test_m8.ijs'
   r8 =. run_jllamatestm8_ ''
+  jrequire 'test/test_m10.ijs'
+  r10 =. run_jllamatestm10_ ''
   assert. r1
   assert. r2
   assert. r3
@@ -187,6 +189,7 @@ test =: 3 : 0
   assert. r6
   assert. r7
   assert. r8
+  assert. r10
   smoutput 'jllama test OK  ' , version ''
   i. 0 0
 )
