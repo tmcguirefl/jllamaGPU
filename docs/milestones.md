@@ -9,7 +9,7 @@ Full narrative was developed in the jllama design session. Summary:
 | **M2** | Attn + RoPE + KV | cache decode == full recompute on synthetic weights | **done** |
 | **M3** | Tiny stack | greedy generate on random Llama shapes | **done** |
 | **M4** | GGUF F16/F32 | load real file; names/shapes match dump | **done** |
-| **M5** | Tokenizer | encode/decode parity fixtures vs llama.cpp | |
+| **M5** | Tokenizer | GPT-2 byte BPE encode/decode from GGUF vocab | **done** |
 | **M6** | Parity * | greedy tokens match llama.cpp on golden prompts | |
 | **M7** | Sampling UX | temp/top-k/top-p, EOS stop | |
 | **M8** | Performance | profile; fewer copies; LAPACK where useful | |

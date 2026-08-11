@@ -4,8 +4,8 @@ NB.   /Applications/j9.8/bin/jconsole /Users/tomdevel/jdev/jllama/jllama.ijs
 
 cocurrent 'jllama'
 
-VERSION =: '0.4.0'
-MILESTONE =: 'M4'
+VERSION =: '0.5.0'
+MILESTONE =: 'M5'
 
 NB. Directory containing this script (works when loaded by full path).
 ROOT =: (jpath '~user') NB. placeholder overwritten below
@@ -46,7 +46,7 @@ jllama - Llama-style inference in J
   smoke      jllama_smoke ''
   test       jllama_test ''
   root       jllama_root ''
-  milestone  M4 GGUF F16/F32 loader
+  milestone  M5 tokenizer (GPT-2 byte BPE)
 
 Locales:
   jllamatensor  mp silu softmax rmsnorm linear causal_mask allclose
@@ -55,14 +55,18 @@ Locales:
   jllamablock   ffn_swiglu block_full block_step
   jllamamodel   make_synthetic generate forward_full
   jllamagguf    gguf_load gguf_tensor model_from_gguf
+  jllamavocab   vocab_from_gguf encode decode
 
 Example:
   loadcore_jllama_ ''
   m =. make_synthetic_jllamamodel_ 32;8;2;2;16
   m generate_jllamamodel_ (1 2 3) ; 5
   m =. model_from_gguf_jllamagguf_ jllama_root '' , 'test/fixtures/tiny_llama_f16.gguf'
+  v =. vocab_from_gguf_jllamavocab_ jllama_root '' , 'test/fixtures/tiny_bpe_vocab.gguf'
+  ids =. v encode_jllamavocab_ 'ab'
+  v decode_jllamavocab_ ids
 
-Next: M5 tokenizer
+Next: M6 parity vs llama.cpp
 
 jconsole: /Applications/j9.8/bin/jconsole
 trace:    load 'general/misc/trace'
@@ -81,7 +85,7 @@ root =: 3 : 0
   ROOT
 )
 
-NB. Load M1-M4 modules in order
+NB. Load M1-M5 modules in order
 loadcore =: 3 : 0
   jrequire 'core/tensor.ijs'
   jrequire 'core/rope.ijs'
@@ -89,6 +93,7 @@ loadcore =: 3 : 0
   jrequire 'core/block.ijs'
   jrequire 'core/model.ijs'
   jrequire 'io/gguf.ijs'
+  jrequire 'io/vocab.ijs'
 )
 
 NB. Smoke: prior checks + synthetic generate + optional fixture GGUF
@@ -115,12 +120,19 @@ smoke =: 3 : 0
     gids =. g generate_jllamamodel_ (0 1) ; 2
     assert. 4 = # gids
   end.
+  vfix =. ROOT , 'test/fixtures/tiny_bpe_vocab.gguf'
+  if. fexist vfix do.
+    v =. vocab_from_gguf_jllamavocab_ vfix
+    ids =. v encode_jllamavocab_ 'ab'
+    assert. 1 = # ids
+    assert. 'ab' -: v decode_jllamavocab_ ids
+  end.
   smoutput 'jllama smoke OK  ' , version ''
   smoutput 'ROOT=' , ROOT
   i. 0 0
 )
 
-NB. M1 + M2 + M3 + M4 unit tests
+NB. M1 + M2 + M3 + M4 + M5 unit tests
 test =: 3 : 0
   loadcore ''
   jrequire 'test/test_tensor.ijs'
@@ -131,10 +143,13 @@ test =: 3 : 0
   r3 =. run_jllamatestm3_ ''
   jrequire 'test/test_m4.ijs'
   r4 =. run_jllamatestm4_ ''
+  jrequire 'test/test_m5.ijs'
+  r5 =. run_jllamatestm5_ ''
   assert. r1
   assert. r2
   assert. r3
   assert. r4
+  assert. r5
   smoutput 'jllama test OK  ' , version ''
   i. 0 0
 )

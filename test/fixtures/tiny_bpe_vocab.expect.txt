@@ -1,0 +1,14 @@
+n_vocab 263
+n_merges 4
+bos_id 1
+eos_id 2
+unk_id 0
+id_ab 259
+id_Gab 261
+tok_ab 100 101
+enc_ab 259
+enc_a_b 100 35 101
+enc_cab 35 102 259
+enc_hello 107 104 111 111 114
+dec_ab ab
+dec_a_b a b

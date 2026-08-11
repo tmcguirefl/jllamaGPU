@@ -3,7 +3,7 @@
 | File | Milestone | Status |
 |------|-----------|--------|
 | `gguf.ijs` | M4 | **done** - F16/F32 GGUF reader + Llama model pack |
-| `vocab.ijs` | M5 | planned |
+| `vocab.ijs` | M5 | **done** - GPT-2-style byte BPE encode/decode |
 
 ## jllamagguf (M4)
 
@@ -26,4 +26,25 @@
 loadcore_jllama_ ''
 m =. model_from_gguf_jllamagguf_ jllama_root '' , 'test/fixtures/tiny_llama_f16.gguf'
 m generate_jllamamodel_ (0 1) ; 3
+```
+
+## jllamavocab (M5)
+
+| Verb | Role |
+|------|------|
+| `vocab_from_gguf` | path -> vocab box from `tokenizer.ggml.*` |
+| `vocab_from_load` | gguf load box -> vocab box |
+| `encode` | `vocab encode text` -> int ids |
+| `decode` | `vocab decode ids` -> text |
+| `vocab_token` / `vocab_bos` / `vocab_eos` / `vocab_unk` | helpers |
+
+**Supported:** `tokenizer.ggml.model` = `gpt2` or `bpe`; pre = whole-string byte BPE (GPT-2 `bytes_to_unicode`). No full GPT-2 regex pre-tokenizer yet; SPM/`llama` tokenizer model deferred.
+
+**Fixture:** `test/fixtures/tiny_bpe_vocab.gguf` (regen via `python3 labs/make_fixture_vocab.py`).
+
+```j
+loadcore_jllama_ ''
+v =. vocab_from_gguf_jllamavocab_ jllama_root '' , 'test/fixtures/tiny_bpe_vocab.gguf'
+ids =. v encode_jllamavocab_ 'ab'
+v decode_jllamavocab_ ids
 ```

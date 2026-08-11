@@ -73,6 +73,15 @@ Generate API: `m generate ids ; n_new` (numeric `;` is fine).
 - Locale: `jllamagguf` (no `_` in locale name)
 - Loader promotes F16/F32 disk tensors to J f64
 - Quant types rejected until M9
+- GGUF metadata strings are raw UTF-8 bytes; decode with `utf8_decode` before BPE
+
+## Tokenizer (M5)
+
+- Locale: `jllamavocab`
+- GPT-2-style byte BPE: UTF-8 bytes -> `bytes_to_unicode` -> greedy merge by rank
+- Vocab box packed with `(<a),(<b),...` then `<"_` (same nesting rules as model/layer)
+- `encode` / `decode` are dyadic: `vocab encode text`, `vocab decode ids`
+- BOS/EOS skipped on decode; optional add_bos/add_eos from GGUF flags
 
 ## Testing
 
