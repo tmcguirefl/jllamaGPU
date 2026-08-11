@@ -13,7 +13,20 @@
 
 Not a real LM - only for loader/shape/generate smoke.
 
-## Planned primary (M6)
+## Parity fixture (M6)
+
+| Field | Value |
+|-------|--------|
+| Path | `test/fixtures/tiny_parity_f16.gguf` |
+| Arch | llama dense MHA |
+| Dtypes | F16 weights + F32 norms |
+| Shape | n_vocab=267, n_embd=64, n_head=4, n_layer=2, n_ff=128 |
+| Tokenizer | GPT-2 byte BPE in same GGUF |
+| Regen | `python3 labs/make_fixture_parity.py` |
+| Meta | `test/fixtures/tiny_parity_f16.meta.txt` |
+| Oracle | `tools/oracle_greedy` via `labs/run_oracle.sh` (libllama) |
+
+## Planned primary (larger M6+)
 
 | Field | Value |
 |-------|--------|
@@ -21,7 +34,7 @@ Not a real LM - only for loader/shape/generate smoke.
 | File dtype | F16 GGUF |
 | Machine | M2 32 GB (see hardware.md) |
 | Path | _TBD - download into `models/` (gitignored)_ |
-| Oracle | llama.cpp greedy on the same file |
+| Oracle | same `oracle_greedy` on the real file |
 
 When a file is chosen, add: URL, filename, sha256, `n_vocab`, `n_embd`, `n_layer`, `n_head`, `n_head_kv`, `n_ff`, `n_ctx_train`, rope settings.
 

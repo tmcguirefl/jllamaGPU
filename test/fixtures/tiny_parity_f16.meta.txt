@@ -1,0 +1,17 @@
+n_vocab 267
+n_embd 64
+n_head 4
+n_layer 2
+n_ff 128
+theta 10000.0
+rms_eps 1e-05
+data_off 7104
+n_tensors 21
+bos_id 1
+eos_id 2
+unk_id 0
+add_bos 0
+prompt_ab 259
+prompt_hello 266
+prompt_a_b 100 35 101
+prompt_cab 35 102 259

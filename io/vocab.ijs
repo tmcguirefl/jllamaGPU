@@ -180,9 +180,15 @@ bpe_merge =: 4 : 0
     i =. 0
     n =. # word
     while. i < n do.
-      if. (i < n - 1) *. ((> i { word) -: a) *. (> (i + 1) { word) -: b do.
-        nw =. nw , < a , b
-        i =. i + 2
+      NB. J *. does not short-circuit; gate index before (i+1){
+      if. i < n - 1 do.
+        if. ((> i { word) -: a) *. (> (i + 1) { word) -: b do.
+          nw =. nw , < a , b
+          i =. i + 2
+        else.
+          nw =. nw , i { word
+          i =. i + 1
+        end.
       else.
         nw =. nw , i { word
         i =. i + 1

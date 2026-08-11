@@ -42,6 +42,8 @@ m generate_jllamamodel_ (0 1) ; 3
 
 **Fixture:** `test/fixtures/tiny_bpe_vocab.gguf` (regen via `python3 labs/make_fixture_vocab.py`).
 
+**Parity fixture (M6):** `test/fixtures/tiny_parity_f16.gguf` combines weights + tokenizer (regen via `python3 labs/make_fixture_parity.py`).
+
 ```j
 loadcore_jllama_ ''
 v =. vocab_from_gguf_jllamavocab_ jllama_root '' , 'test/fixtures/tiny_bpe_vocab.gguf'

@@ -4,8 +4,8 @@ NB.   /Applications/j9.8/bin/jconsole /Users/tomdevel/jdev/jllama/jllama.ijs
 
 cocurrent 'jllama'
 
-VERSION =: '0.5.0'
-MILESTONE =: 'M5'
+VERSION =: '0.6.0'
+MILESTONE =: 'M6'
 
 NB. Directory containing this script (works when loaded by full path).
 ROOT =: (jpath '~user') NB. placeholder overwritten below
@@ -46,7 +46,7 @@ jllama - Llama-style inference in J
   smoke      jllama_smoke ''
   test       jllama_test ''
   root       jllama_root ''
-  milestone  M5 tokenizer (GPT-2 byte BPE)
+  milestone  M6 greedy parity vs llama.cpp
 
 Locales:
   jllamatensor  mp silu softmax rmsnorm linear causal_mask allclose
@@ -61,12 +61,16 @@ Example:
   loadcore_jllama_ ''
   m =. make_synthetic_jllamamodel_ 32;8;2;2;16
   m generate_jllamamodel_ (1 2 3) ; 5
-  m =. model_from_gguf_jllamagguf_ jllama_root '' , 'test/fixtures/tiny_llama_f16.gguf'
-  v =. vocab_from_gguf_jllamavocab_ jllama_root '' , 'test/fixtures/tiny_bpe_vocab.gguf'
+  m =. model_from_gguf_jllamagguf_ jllama_root '' , 'test/fixtures/tiny_parity_f16.gguf'
+  v =. vocab_from_gguf_jllamavocab_ jllama_root '' , 'test/fixtures/tiny_parity_f16.gguf'
   ids =. v encode_jllamavocab_ 'ab'
-  v decode_jllamavocab_ ids
+  m generate_jllamamodel_ ids ; 3
 
-Next: M6 parity vs llama.cpp
+Oracle (M6):
+  make -C labs oracle_greedy   NB. needs brew llama.cpp
+  labs/run_oracle.sh test/fixtures/tiny_parity_f16.gguf ab 3 --ids 259
+
+Next: M7 sampling UX
 
 jconsole: /Applications/j9.8/bin/jconsole
 trace:    load 'general/misc/trace'
@@ -85,7 +89,7 @@ root =: 3 : 0
   ROOT
 )
 
-NB. Load M1-M5 modules in order
+NB. Load M1-M6 modules in order
 loadcore =: 3 : 0
   jrequire 'core/tensor.ijs'
   jrequire 'core/rope.ijs'
@@ -127,12 +131,21 @@ smoke =: 3 : 0
     assert. 1 = # ids
     assert. 'ab' -: v decode_jllamavocab_ ids
   end.
+  pfix =. ROOT , 'test/fixtures/tiny_parity_f16.gguf'
+  if. fexist pfix do.
+    pm =. model_from_gguf_jllamagguf_ pfix
+    pv =. vocab_from_gguf_jllamavocab_ pfix
+    pids =. pv encode_jllamavocab_ 'ab'
+    assert. 1 = # pids
+    g2 =. pm generate_jllamamodel_ pids ; 2
+    assert. 3 = # g2
+  end.
   smoutput 'jllama smoke OK  ' , version ''
   smoutput 'ROOT=' , ROOT
   i. 0 0
 )
 
-NB. M1 + M2 + M3 + M4 + M5 unit tests
+NB. M1-M6 unit tests (M6 needs tools/oracle_greedy)
 test =: 3 : 0
   loadcore ''
   jrequire 'test/test_tensor.ijs'
@@ -145,11 +158,14 @@ test =: 3 : 0
   r4 =. run_jllamatestm4_ ''
   jrequire 'test/test_m5.ijs'
   r5 =. run_jllamatestm5_ ''
+  jrequire 'test/test_m6.ijs'
+  r6 =. run_jllamatestm6_ ''
   assert. r1
   assert. r2
   assert. r3
   assert. r4
   assert. r5
+  assert. r6
   smoutput 'jllama test OK  ' , version ''
   i. 0 0
 )

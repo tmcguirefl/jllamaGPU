@@ -5,3 +5,6 @@ models/**
 /tmp/
 labs/scratch/**
 .claude/
+tools/oracle_greedy
+tools/llama.cpp/
+tools/llama-bin/

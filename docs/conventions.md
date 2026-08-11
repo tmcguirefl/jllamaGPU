@@ -82,6 +82,15 @@ Generate API: `m generate ids ; n_new` (numeric `;` is fine).
 - Vocab box packed with `(<a),(<b),...` then `<"_` (same nesting rules as model/layer)
 - `encode` / `decode` are dyadic: `vocab encode text`, `vocab decode ids`
 - BOS/EOS skipped on decode; optional add_bos/add_eos from GGUF flags
+- J `*.` does **not** short-circuit; guard `(i+1){` before pairing in BPE merge
+
+## Parity oracle (M6)
+
+- Binary: `tools/oracle_greedy` built from `labs/oracle_greedy.c` (`make -C labs`)
+- Wrapper: `labs/run_oracle.sh` filters libllama stderr to one `PROMPT|GEN|FULL` line
+- Compare greedy argmax token ids on the same prompt ids (not free text sampling)
+- Fixture must include llama.cpp-required keys (`llama.attention.layer_norm_rms_epsilon`, rope dim, tokenizer, …)
+
 
 ## Testing
 

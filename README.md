@@ -21,18 +21,26 @@ Inside the session:
 ```j
 jllama_help ''
 jllama_smoke ''
-jllama_test ''     NB. M1-M5 unit tests
+jllama_test ''     NB. M1-M6 unit tests (M6 needs tools/oracle_greedy)
 
 NB. synthetic or fixture GGUF generate + tokenize
 loadcore_jllama_ ''
 m =. make_synthetic_jllamamodel_ 32;8;2;2;16
 m generate_jllamamodel_ (1 2 3) ; 5
-m =. model_from_gguf_jllamagguf_ jllama_root '' , 'test/fixtures/tiny_llama_f16.gguf'
-m generate_jllamamodel_ (0 1) ; 3
-v =. vocab_from_gguf_jllamavocab_ jllama_root '' , 'test/fixtures/tiny_bpe_vocab.gguf'
+m =. model_from_gguf_jllamagguf_ jllama_root '' , 'test/fixtures/tiny_parity_f16.gguf'
+v =. vocab_from_gguf_jllamavocab_ jllama_root '' , 'test/fixtures/tiny_parity_f16.gguf'
 ids =. v encode_jllamavocab_ 'ab'
-v decode_jllamavocab_ ids
+m generate_jllamamodel_ ids ; 3
 ```
+
+### M6 oracle (llama.cpp)
+
+```sh
+# Homebrew llama.cpp required
+make -C labs
+labs/run_oracle.sh test/fixtures/tiny_parity_f16.gguf ab 3 --ids 259
+```
+
 
 ## Project goal (v1)
 
