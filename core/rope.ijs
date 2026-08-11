@@ -19,8 +19,9 @@ DEFAULT_THETA =: 10000
 
 NB. theta rope_inv d_head  -> inv_freq length d_head%2
 rope_inv =: 4 : 0
-  theta =. x
-  d =. y
+  NB. GGUF meta often yields length-1 lists; ^ needs a true scalar base.
+  theta =. {. x
+  d =. {. y
   'rope: d_head must be even and positive' assert (d > 0) *. 0 = 2 | d
   % theta ^ ((+: i. -: d) % d)
 )

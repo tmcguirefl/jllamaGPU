@@ -74,6 +74,23 @@ jllama loads Llama GQA when `n_head_kv` divides `n_head` and attn_k/v widths are
 | Size on M2 32GB as J f64 | ~0.12 GB weights | ~8 GB weights |
 | Quant | not needed | often needed (M12) |
 
+## Optional GQA lab (M13): Llama-3.2-1B Instruct F16
+
+| Field | Value |
+|-------|--------|
+| Path | `models/Llama-3.2-1B-Instruct-f16.gguf` (gitignored, ~2.3 GB) |
+| Source | [bartowski/Llama-3.2-1B-Instruct-GGUF](https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF) |
+| Hparams | n_vocab=128256, n_embd=2048, n_head=32, n_head_kv=8, n_layer=16, n_ff=8192, θ=500000 |
+| RAM | ~5–8 GB as J f64 after load |
+
+```sh
+export PATH="$HOME/.local/bin:$PATH"
+hf download bartowski/Llama-3.2-1B-Instruct-GGUF Llama-3.2-1B-Instruct-f16.gguf --local-dir models
+bin/jllama_cli -m models/Llama-3.2-1B-Instruct-f16.gguf -p "The capital of France is" -n 16
+```
+
+Notes: load is F16→f64 (LUT decode); pure-J generate is slow vs llama.cpp; no chat template; no quant.
+
 ## Lab / synthetic
 
 | Name | Notes |

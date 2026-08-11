@@ -96,29 +96,35 @@ u16 =: 3 : 0
   (_1 (3!:4) y) (17 b.) 16bffff
 )
 
-NB. IEEE binary16 bits (u16) -> J floats
+NB. IEEE binary16 bits (u16) -> J floats (vectorized).
 NB. Avoid b. shifts (opcode confusion); use integer divide / mask.
-f16_from_bits =: 3 : 0
+NB. Scalar loop was ~2.5e6 elems/s (~8+ min for 1B F16); this is array-wide.
+f16_from_bits_raw =: 3 : 0
   u =. , y
   sign =. _1 ^ u >: 16b8000
   exp =. 16b1f (17 b.) <. u % 1024
   mant =. 16b3ff (17 b.) u
-  n =. # u
-  out =. n $ 0.0
-  for_i. i. n do.
-    e =. i { exp
-    m =. i { mant
-    s =. i { sign
-    if. e = 31 do.
-      if. m = 0 do. v =. _ else. v =. _. end.
-    elseif. e = 0 do.
-      if. m = 0 do. v =. 0 else. v =. (m % 1024) * 2 ^ _14 end.
-    elseif. do.
-      v =. (1 + m % 1024) * 2 ^ (e - 15)
-    end.
-    out =. (s * v) i } out
+  frac =. mant % 1024
+  NB. normal: (1 + m/1024) * 2^(e-15)
+  v =. (1 + frac) * 2 ^ (exp - 15)
+  NB. subnormal / zero: e=0
+  sub =. exp = 0
+  v =. (sub * frac * 2 ^ _14) + ((-. sub) * v)
+  NB. inf / nan: e=31
+  hi =. exp = 31
+  if. +./ hi do.
+    v =. _ (I. hi *. mant = 0)} v
+    v =. _. (I. hi *. mant ~: 0)} v
   end.
-  out
+  sign * v
+)
+
+NB. 65536-entry LUT (built once at load). Indexing beats re-decode on big tensors.
+F16_LUT =: f16_from_bits_raw i. 65536
+
+NB. y = u16 ints (any shape); ravel-index via LUT
+f16_from_bits =: 3 : 0
+  F16_LUT {~ 16bffff (17 b.) , y
 )
 
 f16_bytes =: 3 : 0
@@ -353,16 +359,17 @@ model_from_gguf =: 3 : 0
   load =. gguf_load y
   arch =. load gguf_meta 'general.architecture'
   'model_from_gguf: only llama arch for M4' assert arch -: 'llama'
-  n_embd =. load gguf_meta 'llama.embedding_length'
-  n_layer =. load gguf_meta 'llama.block_count'
-  n_ff =. load gguf_meta 'llama.feed_forward_length'
-  n_head =. load gguf_meta 'llama.attention.head_count'
-  n_head_kv =. load gguf_meta_default 'llama.attention.head_count_kv' ; n_head
+  NB. {. forces true scalars (GGUF meta numbers are often length-1 lists)
+  n_embd =. {. load gguf_meta 'llama.embedding_length'
+  n_layer =. {. load gguf_meta 'llama.block_count'
+  n_ff =. {. load gguf_meta 'llama.feed_forward_length'
+  n_head =. {. load gguf_meta 'llama.attention.head_count'
+  n_head_kv =. {. load gguf_meta_default 'llama.attention.head_count_kv' ; n_head
   'model_from_gguf: n_head_kv must divide n_head' assert 0 = n_head_kv | n_head
   'model_from_gguf: n_head_kv > 0' assert n_head_kv > 0
   'model_from_gguf: n_embd not divisible by n_head' assert 0 = n_head | n_embd
   d_head =. n_embd % n_head
-  theta =. load gguf_meta_default 'llama.rope.freq_base' ; DEFAULT_THETA
+  theta =. {. load gguf_meta_default 'llama.rope.freq_base' ; DEFAULT_THETA
   wte =. load gguf_tensor 'token_embd.weight'
   n_vocab =. # wte
   'model_from_gguf: bad embd width' assert n_embd = {: $ wte

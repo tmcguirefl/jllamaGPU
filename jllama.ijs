@@ -4,7 +4,7 @@ NB.   /Applications/j9.8/bin/jconsole /Users/tomdevel/jdev/jllama/jllama.ijs
 
 cocurrent 'jllama'
 
-VERSION =: '0.13.0'
+VERSION =: '0.13.1'
 MILESTONE =: 'M13'
 
 NB. Directory containing this script (works when loaded by full path).
