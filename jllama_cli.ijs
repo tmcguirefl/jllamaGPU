@@ -18,6 +18,7 @@ NB. Resolve this script's directory via 4!:3, load, run main.
   else.
     ROOTCLI =. (1!:43 '') , '/'
   end.
+  QUIET_z_ =: 1
   load ROOTCLI , 'jllama.ijs'
   loadcore_jllama_ ''
   jrequire_jllama_ 'cli/cli.ijs'

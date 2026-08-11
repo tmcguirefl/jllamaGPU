@@ -193,11 +193,19 @@ test =: 3 : 0
 
 NB. ---------------------------------------------------------------
 NB. Init
+NB. QUIET_z_ = 1 before load suppresses the REPL banner (used by CLI).
 NB. ---------------------------------------------------------------
 setroot ''
-smoutput 'jllama ' , version ''
-smoutput 'ROOT ' , ROOT
-smoutput 'Type jllama_help ''''  jllama_smoke ''''  jllama_test '''''
+3 : 0 ''
+  quiet =. 0
+  if. 0 = nc <'QUIET_z_' do. quiet =. QUIET_z_ end.
+  if. -. quiet do.
+    smoutput 'jllama ' , version ''
+    smoutput 'ROOT ' , ROOT
+    smoutput 'Type jllama_help ''''  jllama_smoke ''''  jllama_test '''''
+  end.
+  i. 0 0
+)
 
 cocurrent 'z'
 jllama_help_z_ =: help_jllama_
