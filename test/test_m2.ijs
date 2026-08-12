@@ -3,8 +3,7 @@ NB. Loaded by jllama_test ''
 
 cocurrent 'jllamatestm2'
 
-mp =: mp_jllamatensor_
-allclose =: allclose_jllamatensor_
+load ROOT_jllama_ , 'core/tensor.ijs'
 rope =: rope_jllamarope_
 rotate_half =: rotate_half_jllamarope_
 rope_inv =: rope_inv_jllamarope_

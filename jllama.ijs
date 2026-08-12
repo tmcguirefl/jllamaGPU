@@ -48,8 +48,9 @@ jllama - Llama-style inference in J
   root       jllama_root ''
   milestone  M13 GQA (n_head_kv) + M10 lab model
 
-Locales:
-  jllamatensor  mp silu softmax rmsnorm linear causal_mask allclose
+Locales / modules:
+  core/tensor   silu softmax rmsnorm linear causal_mask allclose
+                (no locale — load into caller; matmul is +/ . *)
   jllamarope    rope rotate_half
   jllamaattn    mha_full mha_step mha_prefill_cached
   jllamablock   ffn_swiglu block_full block_step
@@ -93,9 +94,10 @@ root =: 3 : 0
   ROOT
 )
 
-NB. Load M1-M7 modules in order
+NB. Load M1-M7 modules in order.
+NB. core/tensor.ijs is locale-free: each consumer loads it into its own locale
+NB. (attention, block, sample, model, tests). Do not load it into jllama here.
 loadcore =: 3 : 0
-  jrequire 'core/tensor.ijs'
   jrequire 'core/rope.ijs'
   jrequire 'core/attention.ijs'
   jrequire 'core/block.ijs'
@@ -118,10 +120,10 @@ smoke =: 3 : 0
   loadcore ''
   a =. 2 3 $ 1 2 3 4 5 6
   b =. 3 2 $ 7 8 9 10 11 12
-  assert. (2 2 $ 58 64 139 154) -: a mp_jllamatensor_ b
+  assert. (2 2 $ 58 64 139 154) -: a +/ . * b
   x =. 2 4 $ 0 1 2 3 4 5 6 7
   r =. rope_jllamarope_ x
-  assert. (0 { x) allclose_jllamatensor_ 0 { r
+  assert. (0 { x) allclose_jllamamodel_ 0 { r
   m =. make_synthetic_jllamamodel_ 16 ; 8 ; 2 ; 1 ; 16
   ids =. m generate_jllamamodel_ (1 2) ; 3
   assert. 5 = # ids

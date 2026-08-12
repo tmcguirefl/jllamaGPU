@@ -20,8 +20,8 @@ NB.   5. Pure-numeric packs may still use  ;
 
 cocurrent 'jllamamodel'
 
-mp =: mp_jllamatensor_
-rmsnorm =: rmsnorm_jllamatensor_
+NB. Tensor helpers into this locale; matmul is +/ . *
+load ROOT_jllama_ , 'core/tensor.ijs'
 block_full =: block_full_jllamablock_
 block_step =: block_step_jllamablock_
 block_prefill_cached =: block_prefill_cached_jllamablock_
@@ -111,14 +111,14 @@ NB. model logits_last xhidden  (last token only)
 logits_last =: 4 : 0
   'hp wte layers ln_f lm_head' =. > x
   h =. ln_f rmsnorm y
-  ({: h) mp lm_head
+  ({: h) +/ . * lm_head
 )
 
 NB. model logits_all xhidden
 logits_all =: 4 : 0
   'hp wte layers ln_f lm_head' =. > x
   h =. ln_f rmsnorm y
-  h mp lm_head
+  h +/ . * lm_head
 )
 
 NB. Unpack hparams; accept legacy 6-item (MHA) packs

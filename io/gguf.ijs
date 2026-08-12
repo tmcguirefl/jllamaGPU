@@ -19,7 +19,7 @@ NB.   GGUF/ggml 2d: dims = ne0,ne1 with ne0 contiguous (innermost).
 NB.   File ravel -> J  (ne1 , ne0) $ data
 NB.   token_embd.weight kept as (n_vocab , n_embd) = (ne1 , ne0)
 NB.   other 2d .weight matrices transposed to (ne0 , ne1) = n_in x n_out
-NB.   for jllama  x mp w .
+NB.   for jllama  x +/ . * w .
 
 cocurrent 'jllamagguf'
 

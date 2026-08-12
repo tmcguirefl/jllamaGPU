@@ -18,7 +18,7 @@
 
 **Supported:** little-endian GGUF v3, `GGML_TYPE_F32` / `F16` only, Llama-arch dense MHA or GQA (`n_head_kv` divides `n_head`).
 
-**Layout:** ggml 2d `ne0` contiguous; non-embd weights become `n_in x n_out` for `x mp w`. `token_embd.weight` stays `n_vocab x n_embd`.
+**Layout:** ggml 2d `ne0` contiguous; non-embd weights become `n_in x n_out` for `x +/ . * w`. `token_embd.weight` stays `n_vocab x n_embd`.
 
 **Fixture:** `test/fixtures/tiny_llama_f16.gguf` (regen via `python3 labs/make_fixture_gguf.py`).
 

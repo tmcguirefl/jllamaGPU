@@ -19,9 +19,8 @@ NB. Load order: core/tensor.ijs , core/rope.ijs , core/attention.ijs
 
 cocurrent 'jllamaattn'
 
-mp =: mp_jllamatensor_
-softmax =: softmax_jllamatensor_
-causal_mask =: causal_mask_jllamatensor_
+NB. Tensor helpers into this locale (silu/softmax/…); matmul is +/ . *
+load ROOT_jllama_ , 'core/tensor.ijs'
 rope =: rope_jllamarope_
 DEFAULT_THETA =: DEFAULT_THETA_jllamarope_
 
@@ -71,13 +70,13 @@ NB. Causal mask only when n_q=n_k and n_q>1 (full prefill).
 attention1 =: 3 : 0
   'q k v' =. y
   d =. {: $ q
-  scores =. (q mp |: k) % %: d
+  scores =. (q +/ . * |: k) % %: d
   nq =. # q
   nk =. # k
   if. (nq = nk) *. nq > 1 do.
     scores =. scores + causal_mask nq
   end.
-  (softmax scores) mp v
+  (softmax scores) +/ . * v
 )
 
 NB. Q: n_tok x n_head x d_head
@@ -124,9 +123,9 @@ project_qkv =: 4 : 0
   'project_qkv: bad Wk width' assert 0 = d_head | {: $ wk
   n_kv =. ({: $ wk) % d_head
   'project_qkv: bad Wv width' assert ({: $ wv) = n_kv * d_head
-  Q =. n_head split_heads xv mp wq
-  K =. n_kv split_heads xv mp wk
-  V =. n_kv split_heads xv mp wv
+  Q =. n_head split_heads xv +/ . * wq
+  K =. n_kv split_heads xv +/ . * wk
+  V =. n_kv split_heads xv +/ . * wv
   Q ; K ; V
 )
 
@@ -156,7 +155,7 @@ mha_full =: 3 : 0
     'Q K' =. pos apply_rope_qk Q ; K
   end.
   O =. attention_heads Q ; K ; V
-  (merge_heads O) mp wo
+  (merge_heads O) +/ . * wo
 )
 
 NB. ---------------------------------------------------------------
@@ -184,7 +183,7 @@ mha_step =: 3 : 0
   kc =. kc , K
   vc =. vc , V
   O =. attention_heads Q ; kc ; vc
-  out =. (merge_heads O) mp wo
+  out =. (merge_heads O) +/ . * wo
   out ; kc ; vc
 )
 

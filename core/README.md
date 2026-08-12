@@ -11,11 +11,15 @@ Array ops and transformer math.
 | `model.ijs` | M3+M13 | done - stack + generate + GQA hparams |
 | `sample.ijs` | M7 | **done** - temp / top-k / top-p / EOS |
 
-## Locales
+## Modules / locales
 
-### jllamatensor (M1)
+### core/tensor.ijs (M1) — no private locale
 
-`mp` `silu` `softmax` `rmsnorm` `linear` `causal_mask` `allclose`
+Load into the caller’s locale (`load ROOT_jllama_ , 'core/tensor.ijs'`).
+
+`silu` `sftmax` `softmax` `rmsnorm` `linear` `causal_mask` `allclose`
+
+Matrix product is not wrapped — use `+/ . *` at call sites.
 
 ### jllamarope (M2)
 

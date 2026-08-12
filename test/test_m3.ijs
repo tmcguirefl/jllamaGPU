@@ -2,9 +2,7 @@ NB. M3 tests: SwiGLU block, stack, greedy generate, cache==full
 
 cocurrent 'jllamatestm3'
 
-allclose =: allclose_jllamatensor_
-silu =: silu_jllamatensor_
-mp =: mp_jllamatensor_
+load ROOT_jllama_ , 'core/tensor.ijs'
 ffn_swiglu =: ffn_swiglu_jllamablock_
 block_full =: block_full_jllamablock_
 block_prefill_cached =: block_prefill_cached_jllamablock_
@@ -25,9 +23,9 @@ test_ffn_swiglu =: 3 : 0
   wu =. 3 4 $ 0.04 * 1 + i. 12
   wd =. 4 3 $ 0.03 * i. 12
   got =. ffn_swiglu x ; wg ; wu ; wd
-  gate =. silu x mp wg
-  up =. x mp wu
-  exp =. (gate * up) mp wd
+  gate =. silu x +/ . * wg
+  up =. x +/ . * wu
+  exp =. (gate * up) +/ . * wd
   assert. exp allclose got
   assert. 2 3 -: $ got
   1

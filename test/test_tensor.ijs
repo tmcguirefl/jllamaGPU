@@ -1,17 +1,12 @@
 NB. M1 unit tests for core/tensor.ijs
 NB. Load via jllama:  jllama_test ''
 NB. Or:  load <path to jllama.ijs> then jrequire_jllama_ 'test/test_tensor.ijs'
+NB.
+NB. tensor.ijs has no locale — load into this test locale.
 
 cocurrent 'jllamatest'
 
-NB. Bring tensor verbs into this locale for short names
-mp =: mp_jllamatensor_
-silu =: silu_jllamatensor_
-softmax =: softmax_jllamatensor_
-rmsnorm =: rmsnorm_jllamatensor_
-linear =: linear_jllamatensor_
-causal_mask =: causal_mask_jllamatensor_
-allclose =: allclose_jllamatensor_
+load ROOT_jllama_ , 'core/tensor.ijs'
 
 NB. ---------------------------------------------------------------
 NB. Individual cases (each returns 1 on success)
@@ -20,7 +15,7 @@ NB. ---------------------------------------------------------------
 test_mp =: 3 : 0
   a =. 2 3 $ 1 2 3 4 5 6
   b =. 3 2 $ 7 8 9 10 11 12
-  c =. a mp b
+  c =. a +/ . * b
   expect =. 2 2 $ 58 64 139 154
   assert. expect -: c
   1
@@ -95,7 +90,7 @@ test_causal_mask =: 3 : 0
   assert. 0 = (<3 0) { m
   assert. 0 = (<3 3) { m
   NB. above diagonal forbidden
-  assert. m = MASK_VAL_jllamatensor_ * </~ i. 4
+  assert. m = MASK_VAL * </~ i. 4
   NB. softmax of zeros+mask: mass only on causal positions
   s =. softmax m + 4 4 $ 0
   assert. 0 allclose (<0 3) { s

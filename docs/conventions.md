@@ -27,7 +27,7 @@ Unless a verb documents otherwise:
 | Tensor | J shape (leading axis first) |
 |--------|------------------------------|
 | Token embeddings batch | `n_tok , n_embd` |
-| Weights `linear` W | `n_in , n_out` with `x mp w` and `mp=: +/ . *` |
+| Weights `linear` W | `n_in , n_out` with `x +/ . * w` |
 | Heads (M2 locked) | `n_tok , n_head , d_head` |
 | KV cache per layer (M2 locked) | `n_past , n_head , d_head` (K and V separate) |
 
@@ -36,7 +36,8 @@ Unless a verb documents otherwise:
 ## Locales
 
 - Entry and user verbs: `z` or documented exports from `jllama.ijs`
-- Implementation: dedicated locales (`jllama`, `jllamatensor`, later `jllamagguf`, etc.)
+- Implementation: dedicated locales (`jllama`, `jllamarope`, `jllamaattn`, `jllamagguf`, etc.)
+- **`core/tensor.ijs` is locale-free** — consumers `load` it into their own locale (verbs are shared enough not to rename).
 - **Locale names must not contain `_`.** In J, `name_locale_` uses underscore as the locale separator, so a locale like `jllama_tensor` is ill-formed.
 - Avoid silent globals for model weights; keep them in a model locale/noun
 

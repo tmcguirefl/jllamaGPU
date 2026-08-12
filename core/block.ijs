@@ -5,7 +5,7 @@ NB.   x = x + MHA/GQA( rmsnorm(x) )
 NB.   x = x + FFN( rmsnorm(x) )
 NB.
 NB. FFN = SwiGLU:
-NB.   (silu(x mp w_gate) * (x mp w_up)) mp w_down
+NB.   (silu(x +/.* w_gate) * (x +/.* w_up)) +/.* w_down
 NB.
 NB. Layer is ONE scalar box of 9 weights:
 NB.   <"_ (attn_norm ; wq ; wk ; wv ; wo ; ffn_norm ; w_gate ; w_up ; w_down)
@@ -21,9 +21,8 @@ NB. Load order: tensor, rope, attention, block
 
 cocurrent 'jllamablock'
 
-mp =: mp_jllamatensor_
-silu =: silu_jllamatensor_
-rmsnorm =: rmsnorm_jllamatensor_
+NB. Tensor helpers into this locale; matmul is +/ . *
+load ROOT_jllama_ , 'core/tensor.ijs'
 mha_full =: mha_full_jllamaattn_
 mha_step =: mha_step_jllamaattn_
 kv_empty =: kv_empty_jllamaattn_
@@ -35,8 +34,8 @@ NB. y = x ; w_gate ; w_up ; w_down   (all numeric - ; is fine)
 NB. ---------------------------------------------------------------
 ffn_swiglu =: 3 : 0
   'xv wg wu wd' =. y
-  h =. (silu xv mp wg) * (xv mp wu)
-  h mp wd
+  h =. (silu xv +/ . * wg) * (xv +/ . * wu)
+  h +/ . * wd
 )
 
 NB. ---------------------------------------------------------------

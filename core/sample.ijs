@@ -23,7 +23,8 @@ NB.   rng_u01 seed -> (<u) , (<seed2)
 
 cocurrent 'jllamasample'
 
-softmax =: softmax_jllamatensor_
+NB. Tensor helpers into this locale (softmax, …)
+load ROOT_jllama_ , 'core/tensor.ijs'
 MASK =: _1e30
 
 NB. ---------------------------------------------------------------

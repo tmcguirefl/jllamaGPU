@@ -2,7 +2,7 @@ NB. M7 tests: temperature / top-k / top-p sampling + EOS stop
 
 cocurrent 'jllamatestm7'
 
-softmax =: softmax_jllamatensor_
+load ROOT_jllama_ , 'core/tensor.ijs'
 sample_greedy =: sample_greedy_jllamasample_
 top_k_filter =: top_k_filter_jllamasample_
 top_p_filter =: top_p_filter_jllamasample_
@@ -57,7 +57,7 @@ test_top_p =: 3 : 0
   assert. 0 < 2 { p
   assert. 1e_9 > | 1 - +/ p
   p1 =. 1 top_p_filter pr
-  assert. pr allclose_jllamatensor_ p1
+  assert. pr allclose p1
   1
 )
 
