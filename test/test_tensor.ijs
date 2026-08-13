@@ -1,12 +1,12 @@
 NB. M1 unit tests for core/tensor.ijs
 NB. Load via jllama:  jllama_test ''
-NB. Or:  load <path to jllama.ijs> then jrequire_jllama_ 'test/test_tensor.ijs'
+NB. Or:  load <path to jllama_dev.ijs> then jrequire_jllama_ 'test/test_tensor.ijs'
 NB.
 NB. tensor.ijs has no locale — load into this test locale.
 
 cocurrent 'jllamatest'
 
-load ROOT_jllama_ , 'core/tensor.ijs'
+load jpath '~temp/jllama/core/tensor.ijs'
 
 NB. ---------------------------------------------------------------
 NB. Individual cases (each returns 1 on success)

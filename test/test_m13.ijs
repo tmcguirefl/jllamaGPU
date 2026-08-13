@@ -2,7 +2,7 @@ NB. M13 tests: GQA (n_head_kv < n_head) attention + stack + generate
 
 cocurrent 'jllamatestm13'
 
-load ROOT_jllama_ , 'core/tensor.ijs'
+load jpath '~temp/jllama/core/tensor.ijs'
 mha_full =: mha_full_jllamaattn_
 mha_prefill_cached =: mha_prefill_cached_jllamaattn_
 expand_kv =: expand_kv_jllamaattn_

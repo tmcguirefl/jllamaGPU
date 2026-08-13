@@ -21,7 +21,7 @@ NB.   5. Pure-numeric packs may still use  ;
 cocurrent 'jllamamodel'
 
 NB. Tensor helpers into this locale; matmul is +/ . *
-load ROOT_jllama_ , 'core/tensor.ijs'
+load jpath '~temp/jllama/core/tensor.ijs'
 block_full =: block_full_jllamablock_
 block_step =: block_step_jllamablock_
 block_prefill_cached =: block_prefill_cached_jllamablock_

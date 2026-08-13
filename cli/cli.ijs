@@ -205,7 +205,7 @@ run_opts =: 3 : 0
     0 return.
   end.
   if. do_ver do.
-    smoutput 'jllama_cli ' , VERSION_jllama_ , ' (' , MILESTONE_jllama_ , ')'
+    smoutput 'jllama_cli ' , VERSION_jllamasys_ , ' (' , MILESTONE_jllamasys_ , ')'
     0 return.
   end.
   if. 0 = # model do.

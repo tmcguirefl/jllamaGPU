@@ -1,16 +1,11 @@
 #!/usr/bin/env bash
-# jllama_cli - thin shell wrapper around jconsole + jllama_cli.ijs
+# Convenience wrapper: run repo-root jllama_cli.ijs (shebang → jconsole).
 set -euo pipefail
-
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-JCONSOLE="${JCONSOLE:-/Applications/j9.8/bin/jconsole}"
-
-if [[ ! -x "$JCONSOLE" ]]; then
-  echo "jllama_cli: jconsole not found or not executable: $JCONSOLE" >&2
-  echo "Set JCONSOLE to your J 9.8 jconsole path." >&2
+CLI="$ROOT/jllama_cli.ijs"
+if [[ ! -x "$CLI" ]]; then
+  echo "jllama_cli: missing or not executable: $CLI" >&2
   exit 127
 fi
-
-# Feed a blank line so jconsole does not wait for "Press ENTER to inspect" on errors.
-# main_jllamacli_ calls 2!:55 and exits the process.
-printf '\n' | exec "$JCONSOLE" "$ROOT/jllama_cli.ijs" "$@"
+# Blank line so jconsole does not wait on "Press ENTER to inspect" after errors.
+printf '\n' | exec "$CLI" "$@"

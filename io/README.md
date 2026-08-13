@@ -23,6 +23,7 @@
 **Fixture:** `test/fixtures/tiny_llama_f16.gguf` (regen via `python3 labs/make_fixture_gguf.py`).
 
 ```j
+NB. after: jconsole jllama_dev.ijs
 loadcore_jllama_ ''
 m =. model_from_gguf_jllamagguf_ jllama_root '' , 'test/fixtures/tiny_llama_f16.gguf'
 m generate_jllamamodel_ (0 1) ; 3

@@ -12,6 +12,15 @@ Not a port of the llama.cpp C++ codebase. jllama reimplements a **thin vertical 
 
 ## Quick start
 
+### Publish to J `~temp/jllama` (required)
+
+Engine scripts load via `jpath '~temp/jllama/...'`. After clone or edits:
+
+```sh
+bin/publish_jllama
+# -> ~/j9.8-user/temp/jllama/{sysutils,jllama_cli,core,io,cli}/...
+```
+
 ### CLI (M8 + M10)
 
 ```sh
@@ -33,7 +42,7 @@ hf download shibatch/stories-converted stories15M.F16.gguf --local-dir models
 ### REPL
 
 ```sh
-/Applications/j9.8/bin/jconsole /Users/tomdevel/jdev/jllama/jllama.ijs
+/Applications/j9.8/bin/jconsole /Users/tomdevel/jdev/jllama/jllama_dev.ijs
 ```
 
 Inside the session:
@@ -52,6 +61,8 @@ v =. vocab_from_gguf_jllamavocab_ jllama_root '' , 'test/fixtures/tiny_parity_f1
 ids =. v encode_jllamavocab_ 'ab'
 m generate_jllamamodel_ ids ; 3
 ```
+
+CLI does **not** load `jllama_dev.ijs` — `jllama_cli.ijs` is standalone (shebang → jconsole + static `load jpath '~temp/jllama/...'`).
 
 ### M6 oracle (llama.cpp)
 
@@ -87,9 +98,11 @@ J has no float32 arrays in 64-bit J; loaded F16/F32 weights become **float64** (
 ## Layout
 
 ```text
-jllama.ijs          NB. entry: load path, help, smoke, test
-jllama_cli.ijs      NB. CLI entry (exits after run)
-bin/jllama_cli      NB. bash wrapper
+jllama_cli.ijs      NB. standalone CLI (shebang jconsole; loads ~temp/jllama)
+jllama_dev.ijs      NB. REPL: help, smoke, test, loadcore
+sysutils.ijs        NB. ROOT, setroot, jrequire, jrequire_temp, VERSION
+bin/jllama_cli      NB. thin wrapper → ./jllama_cli.ijs
+bin/publish_jllama  NB. copy runtime → jpath '~temp/jllama'
 cli/                NB. jllamacli parse + run
 core/               NB. tensor, rope, attn, block, sample, model
 io/                 NB. GGUF, vocab
@@ -97,6 +110,8 @@ test/               NB. unit + parity tests
 docs/               NB. milestones, hardware, models, conventions
 labs/               NB. fixtures, oracle, experiments
 models/             NB. large GGUFs (gitignored)
+# published:
+~/j9.8-user/temp/jllama/   NB. jpath '~temp/jllama'
 ```
 
 ## Milestones

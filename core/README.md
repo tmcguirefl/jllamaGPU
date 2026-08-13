@@ -15,7 +15,7 @@ Array ops and transformer math.
 
 ### core/tensor.ijs (M1) — no private locale
 
-Load into the caller’s locale (`load ROOT_jllama_ , 'core/tensor.ijs'`).
+Load into the caller’s locale (`load jpath '~temp/jllama/core/tensor.ijs'` after `bin/publish_jllama`).
 
 `silu` `sftmax` `softmax` `rmsnorm` `linear` `causal_mask` `allclose`
 

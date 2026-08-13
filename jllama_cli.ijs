@@ -1,26 +1,28 @@
-NB. jllama_cli - shell entry for M8
-NB. Prefer:
-NB.   bin/jllama_cli -m MODEL.gguf -p PROMPT ...
-NB. or:
-NB.   /Applications/j9.8/bin/jconsole /path/to/jllama_cli.ijs -m ...
+#!/Applications/j9.8/bin/jconsole
+NB. jllama_cli - standalone shell entry (M8)
 NB.
-NB. Loads jllama.ijs then runs main_jllamacli_ and exits.
+NB. Prefer (after bin/publish_jllama):
+NB.   ./jllama_cli.ijs -m MODEL.gguf -p PROMPT ...
+NB.   bin/jllama_cli ...
+NB.
+NB. Shebang runs jconsole on this file. Loads published modules via
+NB.   jpath '~temp/jllama/...'
+NB. so loads are static (top-level), not only inside explicit defs.
+NB. No dependency on jllama_dev.ijs.
 
 cocurrent 'base'
 
-NB. Resolve this script's directory via 4!:3, load, run main.
-3 : 0 ''
-  scripts =. 4!:3 ''
-  hit =. scripts #~ +./@('jllama_cli.ijs'&E.)@> scripts
-  if. #hit do.
-    p =. > {: hit
-    ROOTCLI =. ((p i: '/') {. p) , '/'
-  else.
-    ROOTCLI =. (1!:43 '') , '/'
-  end.
-  QUIET_z_ =: 1
-  load ROOTCLI , 'jllama.ijs'
-  loadcore_jllama_ ''
-  jrequire_jllama_ 'cli/cli.ijs'
-  main_jllamacli_ ''
-)
+load jpath '~temp/jllama/sysutils.ijs'
+setroot_jllamasys_ 'jllama_cli.ijs'
+
+NB. Engine load order (tensor is pulled in by attention/block/sample/model).
+load jpath '~temp/jllama/core/rope.ijs'
+load jpath '~temp/jllama/core/attention.ijs'
+load jpath '~temp/jllama/core/block.ijs'
+load jpath '~temp/jllama/core/sample.ijs'
+load jpath '~temp/jllama/core/model.ijs'
+load jpath '~temp/jllama/io/gguf.ijs'
+load jpath '~temp/jllama/io/vocab.ijs'
+load jpath '~temp/jllama/cli/cli.ijs'
+
+main_jllamacli_ ''

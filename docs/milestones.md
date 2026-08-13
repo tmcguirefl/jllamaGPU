@@ -6,7 +6,7 @@ jllama reimplements a thin Llama-style decode path in J, validated against llama
 
 | ID | Name | Exit criteria | Status |
 |----|------|----------------|--------|
-| **M0** | Skeleton | `jllama.ijs` loads; smoke + help | **done** |
+| **M0** | Skeleton | `jllama_dev.ijs` loads; smoke + help | **done** |
 | **M1** | Tensor lab | rmsnorm, softmax, silu, linear, mask tested | **done** |
 | **M2** | Attn + RoPE + KV | cache decode == full recompute (synthetic) | **done** |
 | **M3** | Tiny stack | greedy generate on random Llama shapes | **done** |

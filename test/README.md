@@ -20,5 +20,5 @@ M6 requires Homebrew `llama.cpp` and a built oracle:
 
 ```sh
 make -C labs
-jllama_test ''   # from jconsole after loading jllama.ijs
+jllama_test ''   # from jconsole after loading jllama_dev.ijs
 ```

@@ -20,7 +20,7 @@ NB. Load order: core/tensor.ijs , core/rope.ijs , core/attention.ijs
 cocurrent 'jllamaattn'
 
 NB. Tensor helpers into this locale (silu/softmax/…); matmul is +/ . *
-load ROOT_jllama_ , 'core/tensor.ijs'
+load jpath '~temp/jllama/core/tensor.ijs'
 rope =: rope_jllamarope_
 DEFAULT_THETA =: DEFAULT_THETA_jllamarope_
 
