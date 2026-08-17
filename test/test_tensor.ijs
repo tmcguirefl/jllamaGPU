@@ -76,7 +76,7 @@ test_linear_bias =: 3 : 0
 test_linear_nobias =: 3 : 0
   x =. 2 3 $ 1 2 3 4 5 6
   w =. 3 2 $ 1 0 0 1 1 1
-  got =. linear x ; w
+  got =. linear x ; w ; 0
   exp =. 2 2 $ 4 5 10 11
   assert. exp -: got
   1
