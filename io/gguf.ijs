@@ -352,10 +352,15 @@ gguf_tensor =: 4 : 0
   (|. dims) $ data
 )
 
+NB. load gguf_has name -> 1 iff tensor present
+gguf_has =: 4 : 0
+  0 ~: # x gguf_find y
+)
+
 NB. ---------------------------------------------------------------
 NB. Llama-arch -> jllama model box
 NB. ---------------------------------------------------------------
-model_from_gguf =: 3 : 0
+model_from_gguf_llama =: 3 : 0
   load =. gguf_load y
   arch =. load gguf_meta 'general.architecture'
   'model_from_gguf: only llama arch for M4' assert arch -: 'llama'
@@ -397,6 +402,172 @@ model_from_gguf =: 3 : 0
     wg =. load gguf_tensor pref , 'ffn_gate.weight'
     wu =. load gguf_tensor pref , 'ffn_up.weight'
     wd =. load gguf_tensor pref , 'ffn_down.weight'
+    layer =. <"_ (attn_n ; wq ; wk ; wv ; wo ; ffn_n ; wg ; wu ; wd)
+    layers =. layers , layer
+  end.
+  hparams =. n_vocab ; n_embd ; n_head ; n_layer ; n_ff ; theta ; n_head_kv
+  <"_ (hparams ; wte ; layers ; ln_f ; lm_head)
+)
+
+NB. Default live loader (overwritten by `". Qwen35`).
+model_from_gguf =: model_from_gguf_llama
+
+NB. ---------------------------------------------------------------
+NB. Qwen3.5 hybrid (gated attn + Gated DeltaNet) -> jllama model box
+NB. Keys are qwen35.*; trunk layers only (MTP/NextN skipped).
+NB. Sets QHP_jllamaqwen_ used by the Qwen35 block.
+NB. ---------------------------------------------------------------
+model_from_gguf_qwen =: 3 : 0
+  load =. gguf_load y
+  arch =. load gguf_meta 'general.architecture'
+  ok =. +./ arch&-: &> 'qwen35' ; 'qwen3.5' ; 'qwen35moe'
+  if. -. ok do.
+    smoutput 'model_from_gguf_qwen: architecture is ' , arch , ' (expected qwen35)'
+  end.
+  prefk =. arch
+  if. -. +./ prefk&-: &> 'qwen35' ; 'qwen35moe' do. prefk =. 'qwen35' end.
+  n_embd =. {. load gguf_meta prefk , '.embedding_length'
+  n_layer_all =. {. load gguf_meta prefk , '.block_count'
+  n_nextn =. {. load gguf_meta_default (prefk , '.nextn_predict_layers') ; 0
+  n_layer =. n_layer_all - n_nextn
+  'model_from_gguf_qwen: bad nextn' assert (n_layer > 0) *. n_layer <: n_layer_all
+  n_ff =. {. load gguf_meta prefk , '.feed_forward_length'
+  n_head =. {. load gguf_meta prefk , '.attention.head_count'
+  n_head_kv =. {. load gguf_meta_default (prefk , '.attention.head_count_kv') ; n_head
+  'model_from_gguf_qwen: n_head_kv must divide n_head' assert 0 = n_head_kv | n_head
+  d_head =. {. load gguf_meta_default (prefk , '.attention.key_length') ; (n_embd % n_head)
+  n_rot =. {. load gguf_meta_default (prefk , '.rope.dimension_count') ; (d_head % 4)
+  theta =. {. load gguf_meta_default (prefk , '.rope.freq_base') ; DEFAULT_THETA
+  eps =. {. load gguf_meta_default (prefk , '.attention.layer_norm_rms_epsilon') ; 1e_6
+  interval =. {. load gguf_meta_default (prefk , '.full_attention_interval') ; 4
+  d_conv =. {. load gguf_meta_default (prefk , '.ssm.conv_kernel') ; 4
+  d_state =. {. load gguf_meta_default (prefk , '.ssm.state_size') ; 128
+  n_k =. {. load gguf_meta_default (prefk , '.ssm.group_count') ; 16
+  n_v =. {. load gguf_meta_default (prefk , '.ssm.time_step_rank') ; 16
+  d_inner =. {. load gguf_meta_default (prefk , '.ssm.inner_size') ; (n_v * d_state)
+  wte =. load gguf_tensor 'token_embd.weight'
+  n_vocab =. # wte
+  'model_from_gguf_qwen: bad embd width' assert n_embd = {: $ wte
+  ln_f =. load gguf_tensor 'output_norm.weight'
+  if. load gguf_has 'output.weight' do.
+    lm_head =. load gguf_tensor 'output.weight'
+  else.
+    lm_head =. |: wte
+  end.
+  QHP_jllamaqwen_ =: n_head ; n_head_kv ; d_head ; n_rot ; theta ; eps ; d_conv ; d_state ; n_k ; n_v
+  RMS_EPS_jllamamodel_ =: eps
+  RMS_EPS_jllamablock_ =: eps
+  RMS_EPS_jllamaattn_ =: eps
+  RMS_EPS_jllamaqwen_ =: eps
+  layers =. 0 $ a:
+  for_i. i. n_layer do.
+    bid =. ": i
+    p =. 'blk.' , bid , '.'
+    attn_n =. load gguf_tensor p , 'attn_norm.weight'
+    post_n =. load gguf_tensor p , 'post_attention_norm.weight'
+    wg =. load gguf_tensor p , 'ffn_gate.weight'
+    wu =. load gguf_tensor p , 'ffn_up.weight'
+    wd =. load gguf_tensor p , 'ffn_down.weight'
+    is_gdn =. 0 ~: interval | i + 1
+    if. load gguf_has p , 'attn_q.weight' do. is_gdn =. 0 end.
+    if. load gguf_has p , 'attn_qkv.weight' do. is_gdn =. 1 end.
+    if. is_gdn do.
+      wqkv =. load gguf_tensor p , 'attn_qkv.weight'
+      wz =. load gguf_tensor p , 'attn_gate.weight'
+      wconv =. |: load gguf_tensor p , 'ssm_conv1d.weight'
+      dt =. load gguf_tensor p , 'ssm_dt.bias'
+      if. load gguf_has p , 'ssm_a' do.
+        sa =. load gguf_tensor p , 'ssm_a'
+      else.
+        sa =. load gguf_tensor p , 'ssm_a.weight'
+      end.
+      wbeta =. load gguf_tensor p , 'ssm_beta.weight'
+      walpha =. load gguf_tensor p , 'ssm_alpha.weight'
+      snorm =. load gguf_tensor p , 'ssm_norm.weight'
+      wout =. load gguf_tensor p , 'ssm_out.weight'
+      layer =. <"_ ('gdn' ; attn_n ; wqkv ; wz ; wconv ; dt ; sa ; wbeta ; walpha ; snorm ; wout ; post_n ; wg ; wu ; wd)
+    else.
+      wq =. load gguf_tensor p , 'attn_q.weight'
+      wk =. load gguf_tensor p , 'attn_k.weight'
+      wv =. load gguf_tensor p , 'attn_v.weight'
+      wo =. load gguf_tensor p , 'attn_output.weight'
+      qn =. load gguf_tensor p , 'attn_q_norm.weight'
+      kn =. load gguf_tensor p , 'attn_k_norm.weight'
+      layer =. <"_ ('attn' ; attn_n ; wq ; wk ; wv ; wo ; qn ; kn ; post_n ; wg ; wu ; wd)
+    end.
+    layers =. layers , layer
+  end.
+  hparams =. n_vocab ; n_embd ; n_head ; n_layer ; n_ff ; theta ; n_head_kv
+  <"_ (hparams ; wte ; layers ; ln_f ; lm_head)
+)
+
+NB. ---------------------------------------------------------------
+NB. Phi-4-mini / Phi-3 / Phi-4 (GGUF arch=phi3) -> jllama model box
+NB. Fused attn_qkv and fused ffn_up (2*n_ff) are split to Llama layer pack.
+NB. ---------------------------------------------------------------
+model_from_gguf_phi =: 3 : 0
+  load =. gguf_load y
+  arch =. load gguf_meta 'general.architecture'
+  'model_from_gguf_phi: expected phi3' assert arch -: 'phi3'
+  n_embd =. {. load gguf_meta 'phi3.embedding_length'
+  n_layer =. {. load gguf_meta 'phi3.block_count'
+  n_ff =. {. load gguf_meta 'phi3.feed_forward_length'
+  n_head =. {. load gguf_meta 'phi3.attention.head_count'
+  n_head_kv =. {. load gguf_meta_default 'phi3.attention.head_count_kv' ; n_head
+  'model_from_gguf_phi: n_head_kv must divide n_head' assert 0 = n_head_kv | n_head
+  'model_from_gguf_phi: n_embd not divisible by n_head' assert 0 = n_head | n_embd
+  d_head =. n_embd % n_head
+  n_rot =. {. load gguf_meta_default 'phi3.rope.dimension_count' ; d_head
+  'model_from_gguf_phi: partial RoPE not implemented' assert n_rot = d_head
+  theta =. {. load gguf_meta_default 'phi3.rope.freq_base' ; DEFAULT_THETA
+  eps =. {. load gguf_meta_default 'phi3.attention.layer_norm_rms_epsilon' ; 1e_5
+  RMS_EPS_jllamamodel_ =: eps
+  RMS_EPS_jllamablock_ =: eps
+  RMS_EPS_jllamaattn_ =: eps
+  RMS_EPS_jllamaphi_ =: eps
+  wte =. load gguf_tensor 'token_embd.weight'
+  n_vocab =. # wte
+  'model_from_gguf_phi: bad embd width' assert n_embd = {: $ wte
+  ln_f =. load gguf_tensor 'output_norm.weight'
+  if. load gguf_has 'output.weight' do.
+    lm_head =. load gguf_tensor 'output.weight'
+  else.
+    lm_head =. |: wte
+  end.
+  n_q =. n_head * d_head
+  n_k =. n_head_kv * d_head
+  layers =. 0 $ a:
+  for_i. i. n_layer do.
+    bid =. ": i
+    pref =. 'blk.' , bid , '.'
+    attn_n =. load gguf_tensor pref , 'attn_norm.weight'
+    ffn_n =. load gguf_tensor pref , 'ffn_norm.weight'
+    if. load gguf_has pref , 'attn_q.weight' do.
+      wq =. load gguf_tensor pref , 'attn_q.weight'
+      wk =. load gguf_tensor pref , 'attn_k.weight'
+      wv =. load gguf_tensor pref , 'attn_v.weight'
+    else.
+      qkv =. load gguf_tensor pref , 'attn_qkv.weight'
+      'model_from_gguf_phi: bad attn_qkv width' assert ({: $ qkv) = n_q + n_k + n_k
+      rest =. n_q }."1 qkv
+      wq =. n_q {."1 qkv
+      wk =. n_k {."1 rest
+      wv =. n_k }."1 rest
+    end.
+    wo =. load gguf_tensor pref , 'attn_output.weight'
+    wd =. load gguf_tensor pref , 'ffn_down.weight'
+    if. load gguf_has pref , 'ffn_gate.weight' do.
+      wg =. load gguf_tensor pref , 'ffn_gate.weight'
+      wu =. load gguf_tensor pref , 'ffn_up.weight'
+    else.
+      fused =. load gguf_tensor pref , 'ffn_up.weight'
+      'model_from_gguf_phi: fused ffn_up width must be even' assert 0 = 2 | {: $ fused
+      nf =. -: {: $ fused
+      wg =. nf {."1 fused
+      wu =. nf }."1 fused
+    end.
+    'model_from_gguf_phi: bad attn_q width' assert ({: $ wq) = n_q
+    'model_from_gguf_phi: bad attn_k width' assert ({: $ wk) = n_k
     layer =. <"_ (attn_n ; wq ; wk ; wv ; wo ; ffn_n ; wg ; wu ; wd)
     layers =. layers , layer
   end.

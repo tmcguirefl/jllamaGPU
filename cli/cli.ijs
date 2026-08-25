@@ -222,7 +222,9 @@ run_opts =: 3 : 0
     2 return.
   end.
 
-  m =. model_from_gguf model
+  NB. Filename -> Llama3 / Qwen35 / Phi4Mini. Do builds  0!:0 NAME .
+  ". '0!:0 ' , detect_arch_jllamaarch_ model
+  m =. model_from_gguf_jllamagguf_ model
   v =. vocab_from_gguf model
   ids =. v encode prompt
   if. 0 = # ids do.

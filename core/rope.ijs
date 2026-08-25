@@ -63,6 +63,54 @@ expand_heads =: 4 : 0
   (n_tok , x , d) $ , x # y
 )
 
+NB. ---------------------------------------------------------------
+NB. NeoX / GPT-J half-rotation (used by Qwen3.5 gated attention).
+NB. Rotate first n_rot/2 dims against the second n_rot/2 (not pair-wise).
+NB. Remaining last-axis dims (d_head - n_rot) are copied.
+NB. Dyadic: pos rope_neox y  or  (pos;theta;n_rot) rope_neox y
+NB. n_rot omitted (or _1) => rotate the full last axis.
+NB. ---------------------------------------------------------------
+rope_neox =: 3 : 0
+  (i. {. $ y) rope_neox y
+:
+  n_rot =. _1
+  if. 32 = 3!:0 x do.
+    pad =. x
+    if. 1 = # pad do. pad =. pad , < DEFAULT_THETA end.
+    if. 2 = # pad do. pad =. pad , < _1 end.
+    'pos theta n_rot' =. 3 {. pad
+  else.
+    pos =. x
+    theta =. DEFAULT_THETA
+  end.
+  rnk =. #$ y
+  'rope_neox: expected rank 2 or 3' assert rnk e. 2 3
+  d =. {: $ y
+  if. n_rot < 0 do. n_rot =. d end.
+  n_rot =. {. n_rot
+  pos =. , pos
+  theta =. {. theta
+  'rope_neox: n_rot must be even and positive' assert (n_rot > 0) *. 0 = 2 | n_rot
+  'rope_neox: n_rot must be <= d_head' assert n_rot <: d
+  nh =. -: n_rot
+  inv =. theta rope_inv n_rot
+  freqs =. pos */ inv
+  c =. 2 o. freqs
+  s =. 1 o. freqs
+  if. rnk = 3 do.
+    nhead =. 1 { $ y
+    c =. nhead expand_heads c
+    s =. nhead expand_heads s
+  end.
+  rot =. n_rot {."1 y
+  pass =. n_rot }."1 y
+  x0 =. nh {."1 rot
+  x1 =. nh }."1 rot
+  o0 =. (x0 * c) - (x1 * s)
+  o1 =. (x0 * s) + (x1 * c)
+  (o0 ,"1 o1) ,"1 pass
+)
+
 NB. Monadic: positions i. n_tok , default theta
 NB. Dyadic:  pos rope x   or   (pos;theta) rope x
 rope =: 3 : 0

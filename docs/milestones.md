@@ -20,7 +20,7 @@ jllama reimplements a thin Llama-style decode path in J, validated against llama
 | **M11** | Server (opt) | thin HTTP/SSE wrapper around same engine as CLI | optional |
 | **M12** | Quant (opt) | dequant-to-f64 first (Q4/Q5/Q8), then optional faster paths | optional |
 | **M13** | GQA / larger 1B | `n_head_kv` path so Llama-3.2-1B-class models load | **done** |
-| **M14** | Second arch (opt) | shared core, second golden model (e.g. Qwen-dense) | optional |
+| **M14** | Second arch | `Llama3` / `Qwen35` nouns; CLI `".` from GGUF filename; Qwen3.5-2B hybrid graph | **done** |
 
 **Completed critical path:** M0 → M8 + **M10** (engine, CLI, real TinyStories lab).  
 **Deferred:** M9 performance (may touch J interpreter / LAPACK discussion).  

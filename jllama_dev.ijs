@@ -34,7 +34,7 @@ jllama_dev - development entry for jllama
   smoke      jllama_smoke ''
   test       jllama_test ''
   root       jllama_root ''
-  milestone  M13 GQA (n_head_kv) + M10 lab model
+  milestone  M14 Qwen3.5 arch nouns (Llama3 / Qwen35) + GQA + M10 lab model
 
 Publish engine (once / after edits):
   bin/publish_jllama
@@ -95,6 +95,8 @@ loadcore =: 3 : 0
   jrequire_temp 'core/model.ijs'
   jrequire_temp 'io/gguf.ijs'
   jrequire_temp 'io/vocab.ijs'
+  jrequire_temp 'core/arch.ijs'
+  ". '0!:0 Llama3'
 )
 
 NB. Load CLI module after core (for REPL experiments; production CLI is standalone)
@@ -154,7 +156,7 @@ smoke =: 3 : 0
   i. 0 0
 )
 
-NB. M1-M13 unit tests (M6 needs tools/oracle_greedy)
+NB. M1-M14 unit tests (M6 needs tools/oracle_greedy)
 NB. Tests load from project ROOT; engine already published under ~temp.
 test =: 3 : 0
   loadcore ''
@@ -179,6 +181,8 @@ test =: 3 : 0
   r10 =. run_jllamatestm10_ ''
   jrequire 'test/test_m13.ijs'
   r13 =. run_jllamatestm13_ ''
+  jrequire 'test/test_m14.ijs'
+  r14 =. run_jllamatestm14_ ''
   assert. r1
   assert. r2
   assert. r3
@@ -189,6 +193,7 @@ test =: 3 : 0
   assert. r8
   assert. r10
   assert. r13
+  assert. r14
   smoutput 'jllama test OK  ' , version ''
   i. 0 0
 )

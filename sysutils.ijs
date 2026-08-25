@@ -14,8 +14,8 @@ NB. Then:  load jpath '~temp/jllama/sysutils.ijs'
 
 cocurrent 'jllamasys'
 
-VERSION =: '0.13.3'
-MILESTONE =: 'M13'
+VERSION =: '0.14.0'
+MILESTONE =: 'M14'
 
 NB. Placeholder until setroot runs.
 ROOT =: (1!:43 '') , '/'

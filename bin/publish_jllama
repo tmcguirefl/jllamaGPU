@@ -50,6 +50,10 @@ copy core/attention.ijs
 copy core/block.ijs
 copy core/sample.ijs
 copy core/model.ijs
+copy core/gdn.ijs
+copy core/qwen35.ijs
+copy core/phi4mini.ijs
+copy core/arch.ijs
 copy io/gguf.ijs
 copy io/vocab.ijs
 copy cli/cli.ijs

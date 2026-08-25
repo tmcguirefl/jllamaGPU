@@ -23,6 +23,8 @@ load jpath '~temp/jllama/core/sample.ijs'
 load jpath '~temp/jllama/core/model.ijs'
 load jpath '~temp/jllama/io/gguf.ijs'
 load jpath '~temp/jllama/io/vocab.ijs'
+load jpath '~temp/jllama/core/arch.ijs'
+". '0!:0 Llama3'
 load jpath '~temp/jllama/cli/cli.ijs'
 
 main_jllamacli_ ''
