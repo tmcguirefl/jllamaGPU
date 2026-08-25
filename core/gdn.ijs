@@ -14,7 +14,7 @@ NB. Kernel layout in this locale: C x d_conv  (one kernel row per channel).
 
 cocurrent 'jllamagdn'
 
-load jpath '~temp/jllama/core/tensor.ijs'
+load ROOT_jllamasys_ , 'core/tensor.ijs'
 
 sigmoid =: 1 % 1 + ^@:-
 softplus =: 3 : 0

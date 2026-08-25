@@ -15,8 +15,8 @@ NB.   n_head ; n_head_kv ; d_head ; n_rot ; theta ; eps ; d_conv ; d_state ; n_k
 
 cocurrent 'jllamaqwen'
 
-load jpath '~temp/jllama/core/tensor.ijs'
-load jpath '~temp/jllama/core/gdn.ijs'
+load ROOT_jllamasys_ , 'core/tensor.ijs'
+load ROOT_jllamasys_ , 'core/gdn.ijs'
 
 split_heads =: split_heads_jllamaattn_
 merge_heads =: merge_heads_jllamaattn_

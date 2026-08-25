@@ -82,8 +82,8 @@ NB. Bring in with:  0!:0 Qwen35   or   ". '0!:0 Qwen35'
 NB. ---------------------------------------------------------------
 Qwen35 =: 0 : 0
 jllama_arch_prev_z_ =: 18!:5 ''
-load jpath '~temp/jllama/core/gdn.ijs'
-load jpath '~temp/jllama/core/qwen35.ijs'
+load ROOT_jllamasys_ , 'core/gdn.ijs'
+load ROOT_jllamasys_ , 'core/qwen35.ijs'
 model_from_gguf_jllamagguf_ =: model_from_gguf_qwen_jllamagguf_
 block_full_jllamamodel_ =: block_full_jllamaqwen_
 block_step_jllamamodel_ =: block_step_jllamaqwen_
@@ -97,7 +97,7 @@ NB. Bring in with:  0!:0 Phi4Mini   or   ". '0!:0 Phi4Mini'
 NB. ---------------------------------------------------------------
 Phi4Mini =: 0 : 0
 jllama_arch_prev_z_ =: 18!:5 ''
-load jpath '~temp/jllama/core/phi4mini.ijs'
+load ROOT_jllamasys_ , 'core/phi4mini.ijs'
 model_from_gguf_jllamagguf_ =: model_from_gguf_phi_jllamagguf_
 block_full_jllamamodel_ =: block_full_jllamaphi_
 block_step_jllamamodel_ =: block_step_jllamaphi_

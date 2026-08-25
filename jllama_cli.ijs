@@ -1,30 +1,31 @@
 #!/Applications/j9.8/bin/jconsole
-NB. jllama_cli - standalone shell entry (M8)
+NB. jllama_cli - standalone shell entry
 NB.
-NB. Prefer (after bin/publish_jllama):
+NB. From a clone of this tree:
 NB.   ./jllama_cli.ijs -m MODEL.gguf -p PROMPT ...
-NB.   bin/jllama_cli ...
 NB.
-NB. Shebang runs jconsole on this file. Loads published modules via
-NB.   jpath '~temp/jllama/...'
-NB. so loads are static (top-level), not only inside explicit defs.
-NB. No dependency on jllama_dev.ijs.
+NB. Loads sibling scripts from this directory (ROOT). No ~temp publish step.
+NB. Later: manifest.ijs will install the same tree as a J addon.
 
 cocurrent 'base'
 
-load jpath '~temp/jllama/sysutils.ijs'
-setroot_jllamasys_ 'jllama_cli.ijs'
+NB. This script is already in 4!:3; use it to find the clone root.
+3 : 0 ''
+  p =. > {: 4!:3 ''
+  load (((p i: '/') {. p) , '/') , 'sysutils.ijs'
+  setroot_jllamasys_ 'jllama_cli.ijs'
+  i. 0 0
+)
 
-NB. Engine load order (tensor is pulled in by attention/block/sample/model).
-load jpath '~temp/jllama/core/rope.ijs'
-load jpath '~temp/jllama/core/attention.ijs'
-load jpath '~temp/jllama/core/block.ijs'
-load jpath '~temp/jllama/core/sample.ijs'
-load jpath '~temp/jllama/core/model.ijs'
-load jpath '~temp/jllama/io/gguf.ijs'
-load jpath '~temp/jllama/io/vocab.ijs'
-load jpath '~temp/jllama/core/arch.ijs'
+load ROOT_jllamasys_ , 'core/rope.ijs'
+load ROOT_jllamasys_ , 'core/attention.ijs'
+load ROOT_jllamasys_ , 'core/block.ijs'
+load ROOT_jllamasys_ , 'core/sample.ijs'
+load ROOT_jllamasys_ , 'core/model.ijs'
+load ROOT_jllamasys_ , 'io/gguf.ijs'
+load ROOT_jllamasys_ , 'io/vocab.ijs'
+load ROOT_jllamasys_ , 'core/arch.ijs'
 ". '0!:0 Llama3'
-load jpath '~temp/jllama/cli/cli.ijs'
+load ROOT_jllamasys_ , 'cli/cli.ijs'
 
 main_jllamacli_ ''

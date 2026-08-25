@@ -12,17 +12,9 @@ Not a port of the llama.cpp C++ codebase. jllama reimplements a **thin vertical 
 
 ## Quick start
 
-### 1. Publish engine to J `~temp/jllama` (required)
+Clone this tree and run from the repo root. Scripts load from `ROOT` (the directory that contains `jllama_cli.ijs` / `jllama_dev.ijs`). A `manifest.ijs` will later install the same files as a J addon.
 
-Runtime scripts load with static `load jpath '~temp/jllama/...'`. After clone or edits:
-
-```sh
-cd /path/to/jllama
-bin/publish_jllama
-# -> ~/j9.8-user/temp/jllama/{sysutils,jllama_cli,core,io,cli}/...
-```
-
-### 2. Run the CLI
+### Run the CLI
 
 From the repo root, either invoke the J script directly (shebang → jconsole) or use the thin wrapper.
 
@@ -137,7 +129,7 @@ ids =. v encode_jllamavocab_ 'ab'
 m generate_jllamamodel_ ids ; 3
 ```
 
-CLI does **not** load `jllama_dev.ijs` — `jllama_cli.ijs` is standalone (shebang → jconsole + static `load jpath '~temp/jllama/...'`).
+`jllama_cli.ijs` is standalone (shebang → jconsole). It loads `sysutils.ijs`, then `core/`, `io/`, and `cli/` from the same directory.
 
 ### 4. M6 oracle (llama.cpp)
 
@@ -180,11 +172,10 @@ J has no float32 arrays in 64-bit J; loaded F16/F32 weights become **float64**.
 ## Layout
 
 ```text
-jllama_cli.ijs      NB. standalone CLI (shebang jconsole; loads ~temp/jllama)
+jllama_cli.ijs      NB. standalone CLI (shebang jconsole; loads this tree)
 jllama_dev.ijs      NB. REPL: help, smoke, test, loadcore
-sysutils.ijs        NB. ROOT, setroot, jrequire, jrequire_temp, VERSION
+sysutils.ijs        NB. ROOT, setroot, jload, jrequire, VERSION
 bin/jllama_cli      NB. thin wrapper → ./jllama_cli.ijs
-bin/publish_jllama  NB. copy runtime → jpath '~temp/jllama'
 cli/                NB. jllamacli parse + run
 core/               NB. tensor, rope, attn, block, sample, model
 io/                 NB. GGUF, vocab
@@ -192,8 +183,7 @@ test/               NB. unit + parity tests
 docs/               NB. milestones, hardware, models, conventions
 labs/               NB. fixtures, oracle, experiments
 models/             NB. large GGUFs (gitignored)
-# published:
-~/j9.8-user/temp/jllama/   NB. jpath '~temp/jllama'
+# later: manifest.ijs  NB. J addon install into ~addons
 ```
 
 ## Milestones

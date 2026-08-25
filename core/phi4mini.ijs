@@ -15,7 +15,7 @@ NB.   <"_ (attn_n ; wq ; wk ; wv ; wo ; ffn_n ; wg ; wu ; wd)
 
 cocurrent 'jllamaphi'
 
-load jpath '~temp/jllama/core/tensor.ijs'
+load ROOT_jllamasys_ , 'core/tensor.ijs'
 split_heads =: split_heads_jllamaattn_
 merge_heads =: merge_heads_jllamaattn_
 attention_heads =: attention_heads_jllamaattn_

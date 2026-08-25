@@ -8,7 +8,7 @@ gguf_meta_default =: gguf_meta_default_jllamagguf_
 gguf_tensor =: gguf_tensor_jllamagguf_
 gguf_names =: gguf_names_jllamagguf_
 model_from_gguf =: model_from_gguf_jllamagguf_
-load jpath '~temp/jllama/core/tensor.ijs'
+load ROOT_jllamasys_ , 'core/tensor.ijs'
 forward_full =: forward_full_jllamamodel_
 generate =: generate_jllamamodel_
 logits_last =: logits_last_jllamamodel_

@@ -24,7 +24,7 @@ NB.   rng_u01 seed -> (<u) , (<seed2)
 cocurrent 'jllamasample'
 
 NB. Tensor helpers into this locale (softmax, …)
-load jpath '~temp/jllama/core/tensor.ijs'
+load ROOT_jllamasys_ , 'core/tensor.ijs'
 MASK =: _1e30
 
 NB. ---------------------------------------------------------------

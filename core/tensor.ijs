@@ -1,7 +1,7 @@
 NB. jllama core tensor helpers (M1)
 NB. No private locale: load this script into the caller's locale.
 NB.   cocurrent 'myloc'
-NB.   load jpath '~temp/jllama/core/tensor.ijs'
+NB.   load ROOT_jllamasys_ , 'core/tensor.ijs'
 NB.
 NB. Defines: silu softmax rmsnorm linear causal_mask allclose
 NB.           make2d RMS_EPS MASK_VAL ATOL RTOL

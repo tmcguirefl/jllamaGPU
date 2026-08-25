@@ -15,7 +15,7 @@ Array ops and transformer math.
 
 ### core/tensor.ijs (M1) — no private locale
 
-Load into the caller’s locale (`load jpath '~temp/jllama/core/tensor.ijs'` after `bin/publish_jllama`).
+Load into the caller’s locale (`load ROOT_jllamasys_ , 'core/tensor.ijs'`).
 
 `silu` `softmax` `rmsnorm` `linear` `causal_mask` `allclose`
 
@@ -76,6 +76,6 @@ Model (one scalar box):
 `<"_ (hparams ; wte ; layers ; ln_f ; lm_head)`  
 hparams: `n_vocab; n_embd; n_head; n_layer; n_ff; theta; n_head_kv`
 
-See `docs/conventions.md` for why nested args use `(<a),(<b),box` not chained `;`.
+Nested args use `(<a),(<b),box` — not chained `;` across box lists (chained `;` re-boxes left box-lists).
 
 Run tests: `jllama_test ''`

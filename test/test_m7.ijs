@@ -2,7 +2,7 @@ NB. M7 tests: temperature / top-k / top-p sampling + EOS stop
 
 cocurrent 'jllamatestm7'
 
-load jpath '~temp/jllama/core/tensor.ijs'
+load ROOT_jllamasys_ , 'core/tensor.ijs'
 sample_greedy =: sample_greedy_jllamasample_
 top_k_filter =: top_k_filter_jllamasample_
 top_p_filter =: top_p_filter_jllamasample_

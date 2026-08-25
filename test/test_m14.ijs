@@ -2,9 +2,9 @@ NB. M14 tests: architecture nouns, filename detect, Qwen3.5 primitives
 
 cocurrent 'jllamatestm14'
 
-load jpath '~temp/jllama/core/tensor.ijs'
-load jpath '~temp/jllama/core/gdn.ijs'
-load jpath '~temp/jllama/core/arch.ijs'
+load ROOT_jllamasys_ , 'core/tensor.ijs'
+load ROOT_jllamasys_ , 'core/gdn.ijs'
+load ROOT_jllamasys_ , 'core/arch.ijs'
 rope_neox =: rope_neox_jllamarope_
 gdn_seq =: gdn_seq_jllamagdn_
 causal_conv1d =: causal_conv1d_jllamagdn_

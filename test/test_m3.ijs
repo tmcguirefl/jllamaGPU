@@ -2,7 +2,7 @@ NB. M3 tests: SwiGLU block, stack, greedy generate, cache==full
 
 cocurrent 'jllamatestm3'
 
-load jpath '~temp/jllama/core/tensor.ijs'
+load ROOT_jllamasys_ , 'core/tensor.ijs'
 ffn_swiglu =: ffn_swiglu_jllamablock_
 block_full =: block_full_jllamablock_
 block_prefill_cached =: block_prefill_cached_jllamablock_

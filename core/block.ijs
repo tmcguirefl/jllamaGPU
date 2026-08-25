@@ -22,7 +22,7 @@ NB. Load order: tensor, rope, attention, block
 cocurrent 'jllamablock'
 
 NB. Tensor helpers into this locale; matmul is +/ . *
-load jpath '~temp/jllama/core/tensor.ijs'
+load ROOT_jllamasys_ , 'core/tensor.ijs'
 mha_full =: mha_full_jllamaattn_
 mha_step =: mha_step_jllamaattn_
 kv_empty =: kv_empty_jllamaattn_

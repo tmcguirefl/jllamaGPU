@@ -1,28 +1,23 @@
 NB. jllama system utilities
 NB. Locale: jllamasys
 NB.
-NB. Shared bootstrap used by jllama_cli.ijs and jllama_dev.ijs.
-NB.   setroot marker   - set ROOT from a loaded script path (4!:3)
-NB.   jrequire relpath - load ROOT , relpath  (project tree: tests/fixtures)
-NB.   jrequire_temp relpath - load jpath '~temp/jllama/' , relpath
-NB.   jtemp relpath    - full path under published ~temp/jllama
-NB.   ROOT             - project (or entry) root with trailing /
+NB. Clone-and-run (and later J addon) bootstrap.
+NB.   setroot marker  - ROOT from a loaded script path (4!:3)
+NB.   jload relpath   - load ROOT , relpath
+NB.   ROOT            - tree root with trailing /
 NB.   VERSION MILESTONE
 NB.
-NB. Publish engine scripts with:  bin/publish_jllama
-NB. Then:  load jpath '~temp/jllama/sysutils.ijs'
+NB. A future manifest.ijs will place this tree under ~addons.
 
 cocurrent 'jllamasys'
 
 VERSION =: '0.14.0'
 MILESTONE =: 'M14'
 
-NB. Placeholder until setroot runs.
 ROOT =: (1!:43 '') , '/'
 
-NB. y = basename (or unique substring) of the entry script already in 4!:3,
-NB. e.g. 'jllama_cli.ijs' or 'jllama_dev.ijs'.
-NB. Sets ROOT to that script's directory (trailing /) and returns ROOT.
+NB. y = basename (or unique substring) of a script already in 4!:3,
+NB. e.g. 'jllama_cli.ijs'. Sets ROOT to that script's directory.
 setroot =: 3 : 0
   marker =. y
   'setroot: marker required' assert 0 < # marker
@@ -37,13 +32,8 @@ setroot =: 3 : 0
   ROOT
 )
 
-NB. Full path under published tree: jtemp 'core/tensor.ijs'
-jtemp =: 3 : 0
-  (jpath '~temp/jllama/') , y
-)
-
-NB. Load a project script relative to ROOT (fixtures, tests, labs).
-jrequire =: 3 : 0
+NB. Load a script relative to ROOT.
+jload =: 3 : 0
   path =. ROOT , y
   if. -. fexist path do.
     echo 'jllama: missing ' , path
@@ -52,18 +42,9 @@ jrequire =: 3 : 0
   load path
 )
 
-NB. Load a published engine script from ~temp/jllama.
-jrequire_temp =: 3 : 0
-  path =. jtemp y
-  if. -. fexist path do.
-    echo 'jllama: missing published ' , path
-    echo 'jllama: run bin/publish_jllama from the repo'
-    'missing published script' assert 0
-  end.
-  load path
-)
+NB. Load a project script relative to ROOT (tests, fixtures, labs).
+jrequire =: jload
 
-NB. Convenience: return ROOT.
 root =: 3 : 'ROOT'
 
 cocurrent 'base'

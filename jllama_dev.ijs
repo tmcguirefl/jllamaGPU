@@ -2,14 +2,13 @@ NB. jllama_dev - development / testing entry (not used by jllama_cli)
 NB. Prefer:
 NB.   /Applications/j9.8/bin/jconsole /path/to/jllama_dev.ijs
 NB.
-NB. Requires published engine under jpath '~temp/jllama' (bin/publish_jllama).
-NB. Provides help, smoke, full test runner, and loadcore for REPL work.
+NB. Loads the engine from this clone (ROOT). No ~temp publish step.
 
 cocurrent 'base'
 
-NB. Bootstrap from published sysutils; ROOT still from this script (project tree).
-load jpath '~temp/jllama/sysutils.ijs'
 3 : 0 ''
+  p =. > {: 4!:3 ''
+  load (((p i: '/') {. p) , '/') , 'sysutils.ijs'
   setroot_jllamasys_ 'jllama_dev.ijs'
   i. 0 0
 )
@@ -20,7 +19,7 @@ NB. Mirror sysutils into jllama locale for existing root_jllama_ / VERSION_jllam
 VERSION =: VERSION_jllamasys_
 MILESTONE =: MILESTONE_jllamasys_
 jrequire =: jrequire_jllamasys_
-jrequire_temp =: jrequire_temp_jllamasys_
+jload =: jload_jllamasys_
 setroot =: setroot_jllamasys_
 ROOT =: ROOT_jllamasys_
 
@@ -36,12 +35,8 @@ jllama_dev - development entry for jllama
   root       jllama_root ''
   milestone  M14 Qwen3.5 arch nouns (Llama3 / Qwen35) + GQA + M10 lab model
 
-Publish engine (once / after edits):
-  bin/publish_jllama
-  -> jpath '~temp/jllama/...'
-
 Locales / modules:
-  jllamasys     ROOT setroot jrequire jrequire_temp VERSION
+  jllamasys     ROOT setroot jload jrequire VERSION
   core/tensor   silu softmax rmsnorm linear causal_mask allclose
                 (no locale — load into caller; matmul is +/ . *)
   jllamarope    rope rotate_half
@@ -85,31 +80,31 @@ root =: 3 : 0
   ROOT_jllamasys_
 )
 
-NB. Load M1-M7 engine modules from published ~temp/jllama.
+NB. Load engine modules from this clone (ROOT).
 NB. core/tensor.ijs is locale-free: each consumer loads it into its own locale.
 loadcore =: 3 : 0
-  jrequire_temp 'core/rope.ijs'
-  jrequire_temp 'core/attention.ijs'
-  jrequire_temp 'core/block.ijs'
-  jrequire_temp 'core/sample.ijs'
-  jrequire_temp 'core/model.ijs'
-  jrequire_temp 'io/gguf.ijs'
-  jrequire_temp 'io/vocab.ijs'
-  jrequire_temp 'core/arch.ijs'
+  jload 'core/rope.ijs'
+  jload 'core/attention.ijs'
+  jload 'core/block.ijs'
+  jload 'core/sample.ijs'
+  jload 'core/model.ijs'
+  jload 'io/gguf.ijs'
+  jload 'io/vocab.ijs'
+  jload 'core/arch.ijs'
   ". '0!:0 Llama3'
 )
 
 NB. Load CLI module after core (for REPL experiments; production CLI is standalone)
 loadcli =: 3 : 0
   loadcore ''
-  jrequire_temp 'cli/cli.ijs'
+  jload 'cli/cli.ijs'
 )
 
 NB. Smoke: prior checks + synthetic generate + optional fixture GGUF
 smoke =: 3 : 0
   assert. *# ROOT_jllamasys_
   assert. fexist ROOT_jllamasys_ , 'jllama_dev.ijs'
-  assert. fexist jpath '~temp/jllama/sysutils.ijs'
+  assert. fexist ROOT_jllamasys_ , 'sysutils.ijs'
   loadcore ''
   a =. 2 3 $ 1 2 3 4 5 6
   b =. 3 2 $ 7 8 9 10 11 12
@@ -152,12 +147,11 @@ smoke =: 3 : 0
   assert. 5 = # sids
   smoutput 'jllama smoke OK  ' , version ''
   smoutput 'ROOT=' , ROOT_jllamasys_
-  smoutput 'JTEMP=' , jpath '~temp/jllama'
   i. 0 0
 )
 
 NB. M1-M14 unit tests (M6 needs tools/oracle_greedy)
-NB. Tests load from project ROOT; engine already published under ~temp.
+NB. Tests load from project ROOT.
 test =: 3 : 0
   loadcore ''
   jrequire 'test/test_tensor.ijs'
@@ -174,7 +168,7 @@ test =: 3 : 0
   r6 =. run_jllamatestm6_ ''
   jrequire 'test/test_m7.ijs'
   r7 =. run_jllamatestm7_ ''
-  jrequire_temp 'cli/cli.ijs'
+  jload 'cli/cli.ijs'
   jrequire 'test/test_m8.ijs'
   r8 =. run_jllamatestm8_ ''
   jrequire 'test/test_m10.ijs'
@@ -204,7 +198,6 @@ NB. ---------------------------------------------------------------
 3 : 0 ''
   smoutput 'jllama_dev ' , version ''
   smoutput 'ROOT ' , ROOT_jllamasys_
-  smoutput 'JTEMP ' , jpath '~temp/jllama'
   smoutput 'Type jllama_help ''''  jllama_smoke ''''  jllama_test '''''
   i. 0 0
 )

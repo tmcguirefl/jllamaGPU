@@ -6,7 +6,7 @@ NB. tensor.ijs has no locale — load into this test locale.
 
 cocurrent 'jllamatest'
 
-load jpath '~temp/jllama/core/tensor.ijs'
+load ROOT_jllamasys_ , 'core/tensor.ijs'
 
 NB. ---------------------------------------------------------------
 NB. Individual cases (each returns 1 on success)

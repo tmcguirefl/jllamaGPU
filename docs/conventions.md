@@ -36,8 +36,8 @@ Unless a verb documents otherwise:
 ## Locales
 
 - CLI entry: standalone `jllama_cli.ijs` (shebang → jconsole). Dev entry: `jllama_dev.ijs` (help/smoke/test).
-- System bootstrap: `sysutils.ijs` locale `jllamasys` (`ROOT`, `setroot`, `jrequire`, `jrequire_temp`, `VERSION`).
-- **Published load path:** `bin/publish_jllama` copies the engine to `jpath '~temp/jllama'` (`~/j9.8-user/temp/jllama`). Runtime scripts use static `load jpath '~temp/jllama/...'` (valid outside explicit definitions).
+- System bootstrap: `sysutils.ijs` locale `jllamasys` (`ROOT`, `setroot`, `jload`, `jrequire`, `VERSION`).
+- **Load path:** scripts load from `ROOT` (clone directory of `jllama_cli.ijs` / `jllama_dev.ijs`). A later `manifest.ijs` can install the same tree under `~addons`.
 - Implementation: dedicated locales (`jllama`, `jllamarope`, `jllamaattn`, `jllamagguf`, etc.)
 - **`core/tensor.ijs` is locale-free** — consumers `load` it into their own locale (verbs are shared enough not to rename).
 - **Locale names must not contain `_`.** In J, `name_locale_` uses underscore as the locale separator, so a locale like `jllama_tensor` is ill-formed.
