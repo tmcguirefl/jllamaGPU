@@ -12,8 +12,8 @@ NB. A future manifest.ijs will place this tree under ~addons.
 
 cocurrent 'jllamasys'
 
-VERSION =: '0.14.0'
-MILESTONE =: 'M14'
+VERSION =: '0.15.0'
+MILESTONE =: 'M15'
 
 ROOT =: (1!:43 '') , '/'
 

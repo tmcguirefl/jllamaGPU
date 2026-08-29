@@ -4,8 +4,8 @@ NB. Llama-style pre-norm block:
 NB.   x = x + MHA/GQA( rmsnorm(x) )
 NB.   x = x + FFN( rmsnorm(x) )
 NB.
-NB. FFN = SwiGLU:
-NB.   (silu(x +/.* w_gate) * (x +/.* w_up)) +/.* w_down
+NB. FFN = SwiGLU (GPU linear: W is n_out x n_in):
+NB.   (silu(x linear wg) * (x linear wu)) linear wd
 NB.
 NB. Layer is ONE scalar box of 9 weights:
 NB.   <"_ (attn_norm ; wq ; wk ; wv ; wo ; ffn_norm ; w_gate ; w_up ; w_down)
@@ -21,8 +21,12 @@ NB. Load order: tensor, rope, attention, block
 
 cocurrent 'jllamablock'
 
-NB. Tensor helpers into this locale; matmul is +/ . *
 load ROOT_jllamasys_ , 'core/tensor.ijs'
+silu =: silu_jgpu_
+softmax =: softmax_jgpu_
+rmsnorm =: rmsnorm_jgpu_
+linear =: linear_jgpu_
+swiglu =: swiglu_jgpu_
 mha_full =: mha_full_jllamaattn_
 mha_step =: mha_step_jllamaattn_
 kv_empty =: kv_empty_jllamaattn_
@@ -33,9 +37,7 @@ NB. SwiGLU FFN
 NB. y = x ; w_gate ; w_up ; w_down   (all numeric - ; is fine)
 NB. ---------------------------------------------------------------
 ffn_swiglu =: 3 : 0
-  'xv wg wu wd' =. y
-  h =. (silu xv +/ . * wg) * (xv +/ . * wu)
-  h +/ . * wd
+  swiglu y
 )
 
 NB. ---------------------------------------------------------------
@@ -88,13 +90,11 @@ block_prefill_cached =: 3 : 0
     'xv n_head layer' =. y
     theta =. DEFAULT_THETA
   end.
-  NB. layer is open 9-list after assign; re-box as one scalar box
   layerbox =. <"_ layer
   n_embd =. {: $ xv
   d_head =. n_embd % n_head
-  NB. GQA: n_kv from Wk width (layer open: attn_n wq wk ...)
-  wk =. 2 { layer
-  n_kv =. ({: $ wk) % d_head
+  'attn_n wq wk wv wo ffn_n wg wu wd' =. layer
+  n_kv =. ({. $ wk) % d_head
   'kc vc' =. kv_empty n_kv , d_head
   outs =. (0 , n_embd) $ 0
   for_t. i. # xv do.

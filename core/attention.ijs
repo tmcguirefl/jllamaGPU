@@ -1,12 +1,13 @@
 NB. jllama multi-head attention + KV cache (M2 + M13 GQA)
 NB.
-NB. Layout:
-NB.   x, out:      n_tok x n_embd
-NB.   Wq, Wo:      n_embd x n_embd
-NB.   Wk, Wv:      n_embd x (n_head_kv * d_head)   (MHA: n_head_kv = n_head)
+NB. Layout (GPU / GGUF):
+NB.   x, out:      n_tok x n_embd          (F32)
+NB.   Wq, Wo:      n_embd x n_embd         (n_out x n_in, last axis = K)
+NB.   Wk, Wv:      (n_head_kv * d_head) x n_embd
 NB.   Q heads:     n_tok x n_head x d_head
 NB.   K/V heads:   n_tok x n_head_kv x d_head
 NB.   K/V cache:   n_past x n_head_kv x d_head
+NB. Weight GEMM: x linear_jgpu_ W. Score GEMM stays q +/ . * |: k (F32).
 NB.
 NB. GQA: n_head_kv may be < n_head (must divide). Each KV head is
 NB. repeated n_rep = n_head % n_head_kv times at attention time.
@@ -19,9 +20,13 @@ NB. Load order: core/tensor.ijs , core/rope.ijs , core/attention.ijs
 
 cocurrent 'jllamaattn'
 
-NB. Tensor helpers into this locale (silu/softmax/…); matmul is +/ . *
+NB. CPU tensor helpers (causal_mask, allclose) then GPU kernels for the graph.
 load ROOT_jllamasys_ , 'core/tensor.ijs'
-rope =: rope_jllamarope_
+silu =: silu_jgpu_
+softmax =: softmax_jgpu_
+rmsnorm =: rmsnorm_jgpu_
+linear =: linear_jgpu_
+rope =: rope_jgpu_
 DEFAULT_THETA =: DEFAULT_THETA_jllamarope_
 
 NB. ---------------------------------------------------------------
@@ -99,12 +104,13 @@ attention_heads =: 3 : 0
   qb =. 1 0 2 |: q
   kb =. 1 0 2 |: k
   vb =. 1 0 2 |: v
-  heads =. ''
+  NB. Cat items; do not > a list of boxed GPU nouns.
+  O =. (0 , nq , dh) $ 0
   for_h. i. n_head do.
-    heads =. heads , < attention1 (h { qb) ; (h { kb) ; (h { vb)
+    a1 =. attention1 (h { qb) ; (h { kb) ; (h { vb)
+    O =. O , (1 , nq , dh) $ , a1
   end.
-  NB. >heads is n_head x n_q x d_head ; reorder to n_q x n_head x d_head
-  1 0 2 |: > heads
+  1 0 2 |: O
 )
 
 NB. ---------------------------------------------------------------
@@ -119,20 +125,31 @@ project_qkv =: 4 : 0
   n_embd =. {: $ xv
   'project_qkv: n_embd not divisible by n_head' assert 0 = n_head | n_embd
   d_head =. n_embd % n_head
-  'project_qkv: bad Wq width' assert ({: $ wq) = n_head * d_head
-  'project_qkv: bad Wk width' assert 0 = d_head | {: $ wk
-  n_kv =. ({: $ wk) % d_head
-  'project_qkv: bad Wv width' assert ({: $ wv) = n_kv * d_head
-  Q =. n_head split_heads xv +/ . * wq
-  K =. n_kv split_heads xv +/ . * wk
-  V =. n_kv split_heads xv +/ . * wv
+  'project_qkv: bad Wq out' assert ({. $ wq) = n_head * d_head
+  'project_qkv: bad Wk out' assert 0 = d_head | {. $ wk
+  n_kv =. ({. $ wk) % d_head
+  'project_qkv: bad Wv out' assert ({. $ wv) = n_kv * d_head
+  Q =. n_head split_heads xv linear wq
+  K =. n_kv split_heads xv linear wk
+  V =. n_kv split_heads xv linear wv
   Q ; K ; V
 )
 
-NB. pos apply_rope_qk Q;K -> Qr;Kr
+NB. pos or (pos;theta) apply_rope_qk Q;K -> Qr;Kr
+NB. GPU RoPE: (pos;theta;n_rot;mode) with mode 0 = Llama NORMAL.
 apply_rope_qk =: 4 : 0
   'Q K' =. y
-  (x rope Q) ; (x rope K)
+  d =. {: $ Q
+  if. 32 = 3!:0 x do.
+    pad =. x
+    if. 1 = # pad do. pad =. pad , < DEFAULT_THETA end.
+    'pos theta' =. 2 {. pad
+  else.
+    pos =. x
+    theta =. DEFAULT_THETA
+  end.
+  spec =. (<, pos) , (<theta) , (<d) , (<0)
+  (spec rope Q) ; (spec rope K)
 )
 
 NB. ---------------------------------------------------------------
@@ -149,13 +166,9 @@ mha_full =: 3 : 0
   end.
   'Q K V' =. n_head project_qkv xv ; wq ; wk ; wv
   pos =. i. # xv
-  if. theta ~: DEFAULT_THETA do.
-    'Q K' =. (pos ; theta) apply_rope_qk Q ; K
-  else.
-    'Q K' =. pos apply_rope_qk Q ; K
-  end.
+  'Q K' =. (pos ; theta) apply_rope_qk Q ; K
   O =. attention_heads Q ; K ; V
-  (merge_heads O) +/ . * wo
+  (merge_heads O) linear wo
 )
 
 NB. ---------------------------------------------------------------
@@ -175,15 +188,11 @@ mha_step =: 3 : 0
   end.
   if. 1 = #$ xv do. xv =. ,: xv end.
   'Q K V' =. n_head project_qkv xv ; wq ; wk ; wv
-  if. theta ~: DEFAULT_THETA do.
-    'Q K' =. ((,pos) ; theta) apply_rope_qk Q ; K
-  else.
-    'Q K' =. (, pos) apply_rope_qk Q ; K
-  end.
+  'Q K' =. ((, pos) ; theta) apply_rope_qk Q ; K
   kc =. kc , K
   vc =. vc , V
   O =. attention_heads Q ; kc ; vc
-  out =. (merge_heads O) +/ . * wo
+  out =. (merge_heads O) linear wo
   out ; kc ; vc
 )
 
@@ -199,7 +208,7 @@ mha_prefill_cached =: 3 : 0
   end.
   n_embd =. {: $ xv
   d_head =. n_embd % n_head
-  n_kv =. ({: $ wk) % d_head
+  n_kv =. ({. $ wk) % d_head
   'kc vc' =. kv_empty n_kv , d_head
   outs =. (0 , n_embd) $ 0
   for_t. i. # xv do.

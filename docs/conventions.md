@@ -3,7 +3,7 @@
 ## Runtime
 
 ```text
-/Applications/j9.8/bin/jconsole
+/Users/tomdevel/j9.8/bin/jconsole
 ```
 
 Never bare `jconsole` (Java clash). No Java code in this project.
@@ -27,11 +27,11 @@ Unless a verb documents otherwise:
 | Tensor | J shape (leading axis first) |
 |--------|------------------------------|
 | Token embeddings batch | `n_tok , n_embd` |
-| Weights `linear` W | `n_in , n_out` with `x +/ . * w` |
+| Weights `linear` W | `n_out , n_in` (GGUF / GPU; last axis = K) |
 | Heads (M2 locked) | `n_tok , n_head , d_head` |
 | KV cache per layer (M2 locked) | `n_past , n_head , d_head` (K and V separate) |
 
-**Dtype:** J float64 in core math. Loaders may read F16/F32 from disk then promote.
+**Dtype:** GPU F32 activations; GGUF weights stay packed (F16/quant) as `n_out × n_in`. Tokenizer and sampling stay CPU.
 
 ## Locales
 

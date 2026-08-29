@@ -18,6 +18,7 @@ NB. This script is already in 4!:3; use it to find the clone root.
   i. 0 0
 )
 
+load ROOT_jllamasys_ , 'jgpu.ijs'
 load ROOT_jllamasys_ , 'core/rope.ijs'
 load ROOT_jllamasys_ , 'core/attention.ijs'
 load ROOT_jllamasys_ , 'core/block.ijs'

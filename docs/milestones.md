@@ -102,7 +102,7 @@ Not claimed: a pinned ~1B F16 GQA file under `models/` (user supplies Llama-3.2-
 - **J only** in product code (Python OK for fixture writers / labs)
 - Locale names: no `_` (`jllamamodel`, not `jllama_model`)
 - Nested packs: `(<a),(<b),box` — not chained `;` across box lists
-- jconsole: `/Applications/j9.8/bin/jconsole` full path
+- jconsole: `/Users/tomdevel/j9.8/bin/jconsole` full path (GPU libj)
 - Oracle: Homebrew llama.cpp + `tools/oracle_greedy` / `oracle_tokenize`
 - Test model sizing: [hardware.md](hardware.md)
 

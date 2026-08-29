@@ -16,18 +16,32 @@ NB.   <"_ (attn_n ; wq ; wk ; wv ; wo ; ffn_n ; wg ; wu ; wd)
 cocurrent 'jllamaphi'
 
 load ROOT_jllamasys_ , 'core/tensor.ijs'
+silu =: silu_jgpu_
+softmax =: softmax_jgpu_
+rmsnorm =: rmsnorm_jgpu_
+linear =: linear_jgpu_
+rope =: rope_jgpu_
 split_heads =: split_heads_jllamaattn_
 merge_heads =: merge_heads_jllamaattn_
 attention_heads =: attention_heads_jllamaattn_
 kv_empty =: kv_empty_jllamaattn_
 ffn_swiglu =: ffn_swiglu_jllamablock_
-rope_neox =: rope_neox_jllamarope_
 DEFAULT_THETA =: DEFAULT_THETA_jllamarope_
 
-NB. pos or (pos;theta) apply_rope_qk Q;K
+NB. pos or (pos;theta) apply_rope_qk Q;K  — NeoX mode 2
 apply_rope_qk =: 4 : 0
   'Q K' =. y
-  (x rope_neox Q) ; (x rope_neox K)
+  d =. {: $ Q
+  if. 32 = 3!:0 x do.
+    pad =. x
+    if. 1 = # pad do. pad =. pad , < DEFAULT_THETA end.
+    'pos theta' =. 2 {. pad
+  else.
+    pos =. x
+    theta =. DEFAULT_THETA
+  end.
+  spec =. (<, pos) , (<theta) , (<d) , (<2)
+  (spec rope Q) ; (spec rope K)
 )
 
 NB. y = x ; n_head ; wq ; wk ; wv ; wo [; theta]
@@ -40,14 +54,14 @@ mha_full =: 3 : 0
   end.
   n_embd =. {: $ xv
   d_head =. n_embd % n_head
-  n_kv =. ({: $ wk) % d_head
-  Q =. n_head split_heads xv +/ . * wq
-  K =. n_kv split_heads xv +/ . * wk
-  V =. n_kv split_heads xv +/ . * wv
+  n_kv =. ({. $ wk) % d_head
+  Q =. n_head split_heads xv linear wq
+  K =. n_kv split_heads xv linear wk
+  V =. n_kv split_heads xv linear wv
   pos =. i. # xv
   'Q K' =. (pos ; theta) apply_rope_qk Q ; K
   O =. attention_heads Q ; K ; V
-  (merge_heads O) +/ . * wo
+  (merge_heads O) linear wo
 )
 
 NB. y = x1 ; n_head ; wq ; wk ; wv ; wo ; kc ; vc ; pos [; theta]
@@ -61,15 +75,15 @@ mha_step =: 3 : 0
   if. 1 = #$ xv do. xv =. ,: xv end.
   n_embd =. {: $ xv
   d_head =. n_embd % n_head
-  n_kv =. ({: $ wk) % d_head
-  Q =. n_head split_heads xv +/ . * wq
-  K =. n_kv split_heads xv +/ . * wk
-  V =. n_kv split_heads xv +/ . * wv
+  n_kv =. ({. $ wk) % d_head
+  Q =. n_head split_heads xv linear wq
+  K =. n_kv split_heads xv linear wk
+  V =. n_kv split_heads xv linear wv
   'Q K' =. ((, pos) ; theta) apply_rope_qk Q ; K
   kc =. kc , K
   vc =. vc , V
   O =. attention_heads Q ; kc ; vc
-  out =. (merge_heads O) +/ . * wo
+  out =. (merge_heads O) linear wo
   out ; kc ; vc
 )
 
@@ -114,8 +128,8 @@ block_prefill_cached =: 3 : 0
   layerbox =. <"_ layer
   n_embd =. {: $ xv
   d_head =. n_embd % n_head
-  wk =. 2 { layer
-  n_kv =. ({: $ wk) % d_head
+  'attn_n wq wk wv wo ffn_n wg wu wd' =. layer
+  n_kv =. ({. $ wk) % d_head
   'kc vc' =. kv_empty n_kv , d_head
   outs =. (0 , n_embd) $ 0
   for_t. i. # xv do.

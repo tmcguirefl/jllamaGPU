@@ -105,13 +105,13 @@ Filename `Phi-4-mini` / `phi4-mini` / `phi-4` / `phi3` → noun `Phi4Mini`. Dens
 Without a shebang exec bit, you can always use jconsole explicitly:
 
 ```sh
-/Applications/j9.8/bin/jconsole jllama_cli.ijs -m models/stories15M.F16.gguf -p "Once upon a time" -n 32
+/Users/tomdevel/j9.8/bin/jconsole jllama_cli.ijs -m models/stories15M.F16.gguf -p "Once upon a time" -n 32
 ```
 
 ### 3. REPL (dev / tests)
 
 ```sh
-/Applications/j9.8/bin/jconsole jllama_dev.ijs
+/Users/tomdevel/j9.8/bin/jconsole jllama_dev.ijs
 ```
 
 Inside the session:
@@ -146,14 +146,16 @@ labs/run_oracle.sh test/fixtures/tiny_parity_f16.gguf ab 3 --ids 259
 | In scope | Out of scope (for now) |
 |----------|-------------------------|
 | Llama dense + Qwen3.5 hybrid (`Llama3` / `Qwen35` nouns) | MoE / VLM / other GGUF arches |
-| GGUF F16 (F32) weights | ggml backends (Metal/CUDA) |
+| GGUF F16/F32/quant weights on GPU | Flash-attention kernels |
 | RMSNorm, RoPE, MHA/GQA, SwiGLU | Flash-attention kernels |
 | KV-cache prefill + decode | Quant matmul kernels (dequant later) |
 | Greedy + basic sampling | GBNF / chat Jinja |
 | Greedy parity vs llama.cpp | Training |
 | **CLI** (`jllama_cli.ijs`) | **Server** (optional later milestone) |
 
-jllama executes the transformer **eagerly in J** (readable `core/*.ijs`). Architecture graphs live as **nouns** `Llama3` and `Qwen35` (`0 : 0` multiline scripts). The CLI detects the arch from the `.gguf` filename and brings the noun in with do: `". '0!:0 Qwen35'` (script-do on the character noun). llama.cpp remains the external oracle.
+jllama executes the transformer in J on the **GPU J engine** (`$.` nouns, `+/ .*`, `128!:35-38`). Architecture graphs live as **nouns** `Llama3`, `Qwen35`, and `Phi4Mini`. The CLI detects the arch from the `.gguf` filename: `". '0!:0 Qwen35'`. llama.cpp remains the external oracle.
+
+Qwen Gated DeltaNet still needs extra `libj` wraps (`ggml_sigmoid`, `ggml_ssm_conv`, `ggml_gated_delta_net`) — see GPU_ENGINE.md.
 
 ## Test model (this machine: MacBook Pro M2, 32 GB)
 

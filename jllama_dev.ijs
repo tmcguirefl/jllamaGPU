@@ -64,7 +64,7 @@ Oracle (M6/M10):
   make -C labs oracle_greedy   NB. needs brew llama.cpp
   labs/run_oracle.sh test/fixtures/tiny_parity_f16.gguf ab 3 --ids 259
 
-jconsole: /Applications/j9.8/bin/jconsole
+jconsole: /Users/tomdevel/j9.8/bin/jconsole
 trace:    load 'general/misc/trace'
 docs:     README.md  docs/hardware.md  docs/milestones.md  docs/models.md
 )
@@ -84,6 +84,7 @@ root =: 3 : 0
 NB. Load engine modules from this clone (ROOT).
 NB. core/tensor.ijs is locale-free: each consumer loads it into its own locale.
 loadcore =: 3 : 0
+  jload 'jgpu.ijs'
   jload 'core/rope.ijs'
   jload 'core/attention.ijs'
   jload 'core/block.ijs'

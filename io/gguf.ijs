@@ -14,12 +14,11 @@ NB.   gguf_names load
 NB.   model_from_gguf path    -> jllama model box (Llama dense MHA/GQA)
 NB.   gguf_summary path
 NB.
-NB. Weight layout:
-NB.   GGUF/ggml 2d: dims = ne0,ne1 with ne0 contiguous (innermost).
-NB.   File ravel -> J  (ne1 , ne0) $ data
-NB.   token_embd.weight kept as (n_vocab , n_embd) = (ne1 , ne0)
-NB.   other 2d .weight matrices transposed to (ne0 , ne1) = n_in x n_out
-NB.   for jllama  x +/ . * w .
+NB. Weight layout (GPU engine 128!:33):
+NB.   J shape is ggml dims reversed; last axis = K = n_in.
+NB.   2d weights stay n_out x n_in (no J-side transpose).
+NB.   token_embd.weight is n_vocab x n_embd; asf32 so { works.
+NB.   Metadata/tokenizer still parsed in J (header only, no blob).
 
 cocurrent 'jllamagguf'
 
@@ -54,9 +53,9 @@ NB. ---------------------------------------------------------------
 NB. Byte reader state (one load at a time)
 NB. ---------------------------------------------------------------
 rd_init =: 3 : 0
-  RD_BYTES =: y
+  RD_PATH =: y
   RD_OFF =: 0
-  RD_N =: # y
+  RD_N =: 1!:4 < y
   i.0 0
 )
 
@@ -69,10 +68,11 @@ rd_need =: 3 : 0
 
 rd_take =: 3 : 0
   n =. y
+  if. n = 0 do. '' return. end.
   rd_need n
   o =. RD_OFF
   RD_OFF =: o + n
-  n {. o }. RD_BYTES
+  1!:11 RD_PATH ; o , n
 )
 
 align_up =: 4 : 0
@@ -227,8 +227,7 @@ gguf_load =: 3 : 0
     smoutput 'gguf: missing ' , path
     'gguf: file not found' assert 0
   end.
-  bytes =. 1!:1 < path
-  rd_init bytes
+  rd_init path
   magic =. rd_u32 ''
   'gguf: bad magic' assert magic = GGUF_MAGIC
   ver =. rd_u32 ''
@@ -256,7 +255,7 @@ gguf_load =: 3 : 0
     tinfos =. tinfos , < (<name) , (<dims) , (<typ) , (<off)
   end.
   data_off =. align align_up RD_OFF
-  <"_ (meta ; tinfos ; align ; data_off ; bytes)
+  <"_ (meta ; tinfos ; align ; data_off ; path)
 )
 
 NB. x = meta list ; y = key -> 0$0 or ,<value
@@ -309,47 +308,27 @@ gguf_find =: 4 : 0
   0 $ 0
 )
 
-elem_nbytes =: 3 : 0
-  if. y = GGML_F32 do. 4 return. end.
-  if. y = GGML_F16 do. 2 return. end.
-  'gguf: only F16/F32 tensors supported' assert 0
+GPU_PATH =: ''
+GPU_TABLE =: 0 2 $ a:
+
+gguf_gpu_table =: 3 : 0
+  if. -. GPU_PATH -: y do.
+    GPU_TABLE =: 128!:33 y
+    GPU_PATH =: y
+  end.
+  GPU_TABLE
 )
 
-NB. load gguf_tensor name -> numeric array
+NB. load gguf_tensor name -> GPU noun (GGUF layout, last axis = K)
 gguf_tensor =: 4 : 0
   load =. x
   want =. y
-  info =. load gguf_find want
-  'gguf: missing tensor ' , want assert 0 ~: # info
-  'name dims typ off' =. > info
-  'meta tinfos align data_off bytes' =. > load
-  nb =. elem_nbytes typ
-  n_elem =. */ dims
-  nbytes =. n_elem * nb
-  start =. data_off + off
-  'gguf: tensor OOB' assert (start + nbytes) <: # bytes
-  chunk =. nbytes {. start }. bytes
-  if. typ = GGML_F32 do.
-    data =. f32 chunk
-  else.
-    data =. f16_bytes chunk
-  end.
-  'gguf: bad element count' assert n_elem = # , data
-  data =. , data
-  nd =. # dims
-  if. nd = 1 do.
-    data return.
-  end.
-  if. nd = 2 do.
-    ne0 =. 0 { dims
-    ne1 =. 1 { dims
-    raw =. (ne1 , ne0) $ data
-    if. name -: 'token_embd.weight' do.
-      raw return.
-    end.
-    |: raw return.
-  end.
-  (|. dims) $ data
+  'meta tinfos align data_off path' =. > load
+  T =. gguf_gpu_table path
+  names =. 0 {"1 T
+  i =. names i. < want
+  'gguf: missing tensor ' , want assert i < # names
+  > (<i , 1) { T
 )
 
 NB. load gguf_has name -> 1 iff tensor present
@@ -375,30 +354,30 @@ model_from_gguf_llama =: 3 : 0
   'model_from_gguf: n_embd not divisible by n_head' assert 0 = n_head | n_embd
   d_head =. n_embd % n_head
   theta =. {. load gguf_meta_default 'llama.rope.freq_base' ; DEFAULT_THETA
-  wte =. load gguf_tensor 'token_embd.weight'
+  wte =. asf32_jgpu_ load gguf_tensor 'token_embd.weight'
   n_vocab =. # wte
   'model_from_gguf: bad embd width' assert n_embd = {: $ wte
   vs =. load gguf_meta_default 'llama.vocab_size' ; n_vocab
   'model_from_gguf: vocab_size mismatch' assert vs = n_vocab
-  ln_f =. load gguf_tensor 'output_norm.weight'
+  ln_f =. asf32_jgpu_ load gguf_tensor 'output_norm.weight'
   if. 0 ~: # load gguf_find 'output.weight' do.
     lm_head =. load gguf_tensor 'output.weight'
   else.
-    lm_head =. |: wte
+    lm_head =. wte
   end.
   layers =. 0 $ a:
   for_i. i. n_layer do.
     bid =. ": i
     pref =. 'blk.' , bid , '.'
-    attn_n =. load gguf_tensor pref , 'attn_norm.weight'
+    attn_n =. asf32_jgpu_ load gguf_tensor pref , 'attn_norm.weight'
     wq =. load gguf_tensor pref , 'attn_q.weight'
     wk =. load gguf_tensor pref , 'attn_k.weight'
     wv =. load gguf_tensor pref , 'attn_v.weight'
-    'model_from_gguf: bad attn_k width' assert ({: $ wk) = n_head_kv * d_head
-    'model_from_gguf: bad attn_v width' assert ({: $ wv) = n_head_kv * d_head
-    'model_from_gguf: bad attn_q width' assert ({: $ wq) = n_head * d_head
+    'model_from_gguf: bad attn_k out' assert ({. $ wk) = n_head_kv * d_head
+    'model_from_gguf: bad attn_v out' assert ({. $ wv) = n_head_kv * d_head
+    'model_from_gguf: bad attn_q out' assert ({. $ wq) = n_head * d_head
     wo =. load gguf_tensor pref , 'attn_output.weight'
-    ffn_n =. load gguf_tensor pref , 'ffn_norm.weight'
+    ffn_n =. asf32_jgpu_ load gguf_tensor pref , 'ffn_norm.weight'
     wg =. load gguf_tensor pref , 'ffn_gate.weight'
     wu =. load gguf_tensor pref , 'ffn_up.weight'
     wd =. load gguf_tensor pref , 'ffn_down.weight'
@@ -445,14 +424,14 @@ model_from_gguf_qwen =: 3 : 0
   n_k =. {. load gguf_meta_default (prefk , '.ssm.group_count') ; 16
   n_v =. {. load gguf_meta_default (prefk , '.ssm.time_step_rank') ; 16
   d_inner =. {. load gguf_meta_default (prefk , '.ssm.inner_size') ; (n_v * d_state)
-  wte =. load gguf_tensor 'token_embd.weight'
+  wte =. asf32_jgpu_ load gguf_tensor 'token_embd.weight'
   n_vocab =. # wte
   'model_from_gguf_qwen: bad embd width' assert n_embd = {: $ wte
-  ln_f =. load gguf_tensor 'output_norm.weight'
+  ln_f =. asf32_jgpu_ load gguf_tensor 'output_norm.weight'
   if. load gguf_has 'output.weight' do.
     lm_head =. load gguf_tensor 'output.weight'
   else.
-    lm_head =. |: wte
+    lm_head =. wte
   end.
   QHP_jllamaqwen_ =: n_head ; n_head_kv ; d_head ; n_rot ; theta ; eps ; d_conv ; d_state ; n_k ; n_v
   RMS_EPS_jllamamodel_ =: eps
@@ -463,8 +442,8 @@ model_from_gguf_qwen =: 3 : 0
   for_i. i. n_layer do.
     bid =. ": i
     p =. 'blk.' , bid , '.'
-    attn_n =. load gguf_tensor p , 'attn_norm.weight'
-    post_n =. load gguf_tensor p , 'post_attention_norm.weight'
+    attn_n =. asf32_jgpu_ load gguf_tensor p , 'attn_norm.weight'
+    post_n =. asf32_jgpu_ load gguf_tensor p , 'post_attention_norm.weight'
     wg =. load gguf_tensor p , 'ffn_gate.weight'
     wu =. load gguf_tensor p , 'ffn_up.weight'
     wd =. load gguf_tensor p , 'ffn_down.weight'
@@ -474,16 +453,16 @@ model_from_gguf_qwen =: 3 : 0
     if. is_gdn do.
       wqkv =. load gguf_tensor p , 'attn_qkv.weight'
       wz =. load gguf_tensor p , 'attn_gate.weight'
-      wconv =. |: load gguf_tensor p , 'ssm_conv1d.weight'
-      dt =. load gguf_tensor p , 'ssm_dt.bias'
+      wconv =. load gguf_tensor p , 'ssm_conv1d.weight'
+      dt =. asf32_jgpu_ load gguf_tensor p , 'ssm_dt.bias'
       if. load gguf_has p , 'ssm_a' do.
-        sa =. load gguf_tensor p , 'ssm_a'
+        sa =. asf32_jgpu_ load gguf_tensor p , 'ssm_a'
       else.
-        sa =. load gguf_tensor p , 'ssm_a.weight'
+        sa =. asf32_jgpu_ load gguf_tensor p , 'ssm_a.weight'
       end.
       wbeta =. load gguf_tensor p , 'ssm_beta.weight'
       walpha =. load gguf_tensor p , 'ssm_alpha.weight'
-      snorm =. load gguf_tensor p , 'ssm_norm.weight'
+      snorm =. asf32_jgpu_ load gguf_tensor p , 'ssm_norm.weight'
       wout =. load gguf_tensor p , 'ssm_out.weight'
       layer =. <"_ ('gdn' ; attn_n ; wqkv ; wz ; wconv ; dt ; sa ; wbeta ; walpha ; snorm ; wout ; post_n ; wg ; wu ; wd)
     else.
@@ -491,8 +470,8 @@ model_from_gguf_qwen =: 3 : 0
       wk =. load gguf_tensor p , 'attn_k.weight'
       wv =. load gguf_tensor p , 'attn_v.weight'
       wo =. load gguf_tensor p , 'attn_output.weight'
-      qn =. load gguf_tensor p , 'attn_q_norm.weight'
-      kn =. load gguf_tensor p , 'attn_k_norm.weight'
+      qn =. asf32_jgpu_ load gguf_tensor p , 'attn_q_norm.weight'
+      kn =. asf32_jgpu_ load gguf_tensor p , 'attn_k_norm.weight'
       layer =. <"_ ('attn' ; attn_n ; wq ; wk ; wv ; wo ; qn ; kn ; post_n ; wg ; wu ; wd)
     end.
     layers =. layers , layer
@@ -525,14 +504,14 @@ model_from_gguf_phi =: 3 : 0
   RMS_EPS_jllamablock_ =: eps
   RMS_EPS_jllamaattn_ =: eps
   RMS_EPS_jllamaphi_ =: eps
-  wte =. load gguf_tensor 'token_embd.weight'
+  wte =. asf32_jgpu_ load gguf_tensor 'token_embd.weight'
   n_vocab =. # wte
   'model_from_gguf_phi: bad embd width' assert n_embd = {: $ wte
-  ln_f =. load gguf_tensor 'output_norm.weight'
+  ln_f =. asf32_jgpu_ load gguf_tensor 'output_norm.weight'
   if. load gguf_has 'output.weight' do.
     lm_head =. load gguf_tensor 'output.weight'
   else.
-    lm_head =. |: wte
+    lm_head =. wte
   end.
   n_q =. n_head * d_head
   n_k =. n_head_kv * d_head
@@ -540,19 +519,18 @@ model_from_gguf_phi =: 3 : 0
   for_i. i. n_layer do.
     bid =. ": i
     pref =. 'blk.' , bid , '.'
-    attn_n =. load gguf_tensor pref , 'attn_norm.weight'
-    ffn_n =. load gguf_tensor pref , 'ffn_norm.weight'
+    attn_n =. asf32_jgpu_ load gguf_tensor pref , 'attn_norm.weight'
+    ffn_n =. asf32_jgpu_ load gguf_tensor pref , 'ffn_norm.weight'
     if. load gguf_has pref , 'attn_q.weight' do.
       wq =. load gguf_tensor pref , 'attn_q.weight'
       wk =. load gguf_tensor pref , 'attn_k.weight'
       wv =. load gguf_tensor pref , 'attn_v.weight'
     else.
-      qkv =. load gguf_tensor pref , 'attn_qkv.weight'
-      'model_from_gguf_phi: bad attn_qkv width' assert ({: $ qkv) = n_q + n_k + n_k
-      rest =. n_q }."1 qkv
-      wq =. n_q {."1 qkv
-      wk =. n_k {."1 rest
-      wv =. n_k }."1 rest
+      qkv =. $.^:_1 load gguf_tensor pref , 'attn_qkv.weight'
+      'model_from_gguf_phi: bad attn_qkv out' assert ({. $ qkv) = n_q + n_k + n_k
+      wq =. $. n_q {. qkv
+      wk =. $. n_k {. n_q }. qkv
+      wv =. $. n_k {. (n_q + n_k) }. qkv
     end.
     wo =. load gguf_tensor pref , 'attn_output.weight'
     wd =. load gguf_tensor pref , 'ffn_down.weight'
@@ -560,14 +538,14 @@ model_from_gguf_phi =: 3 : 0
       wg =. load gguf_tensor pref , 'ffn_gate.weight'
       wu =. load gguf_tensor pref , 'ffn_up.weight'
     else.
-      fused =. load gguf_tensor pref , 'ffn_up.weight'
-      'model_from_gguf_phi: fused ffn_up width must be even' assert 0 = 2 | {: $ fused
-      nf =. -: {: $ fused
-      wg =. nf {."1 fused
-      wu =. nf }."1 fused
+      fused =. $.^:_1 load gguf_tensor pref , 'ffn_up.weight'
+      'model_from_gguf_phi: fused ffn_up out must be even' assert 0 = 2 | {. $ fused
+      nf =. -: {. $ fused
+      wg =. $. nf {. fused
+      wu =. $. nf }. fused
     end.
-    'model_from_gguf_phi: bad attn_q width' assert ({: $ wq) = n_q
-    'model_from_gguf_phi: bad attn_k width' assert ({: $ wk) = n_k
+    'model_from_gguf_phi: bad attn_q out' assert ({. $ wq) = n_q
+    'model_from_gguf_phi: bad attn_k out' assert ({. $ wk) = n_k
     layer =. <"_ (attn_n ; wq ; wk ; wv ; wo ; ffn_n ; wg ; wu ; wd)
     layers =. layers , layer
   end.
@@ -577,9 +555,9 @@ model_from_gguf_phi =: 3 : 0
 
 gguf_summary =: 3 : 0
   load =. gguf_load y
-  'meta tinfos align data_off bytes' =. > load
+  'meta tinfos align data_off path' =. > load
   smoutput 'file: ' , y
-  smoutput 'bytes: ' , ": # bytes
+  smoutput 'path: ' , path
   smoutput 'align: ' , ": align
   smoutput 'data_off: ' , ": data_off
   smoutput 'n_kv: ' , ": # meta

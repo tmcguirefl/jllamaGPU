@@ -17,14 +17,19 @@ cocurrent 'jllamaqwen'
 
 load ROOT_jllamasys_ , 'core/tensor.ijs'
 load ROOT_jllamasys_ , 'core/gdn.ijs'
+silu =: silu_jgpu_
+softmax =: softmax_jgpu_
+rmsnorm =: rmsnorm_jgpu_
+linear =: linear_jgpu_
+rope =: rope_jgpu_
 
 split_heads =: split_heads_jllamaattn_
 merge_heads =: merge_heads_jllamaattn_
 attention_heads =: attention_heads_jllamaattn_
 kv_empty =: kv_empty_jllamaattn_
 ffn_swiglu =: ffn_swiglu_jllamablock_
-rope_neox =: rope_neox_jllamarope_
 sigmoid =: sigmoid_jllamagdn_
+NB. sigmoid uses ^ — nonce on GPU until libj wraps ggml_sigmoid (128!:41).
 softplus =: softplus_jllamagdn_
 l2norm =: l2norm_jllamagdn_
 causal_conv1d =: causal_conv1d_jllamagdn_
@@ -71,20 +76,21 @@ qwen_mha_full =: 3 : 0
   'xv n_head n_kv d_head n_rot theta eps wq wk wv wo qn kn' =. y
   if. 1 = #$ xv do. xv =. ,: xv end.
   n_tok =. # xv
-  Qf =. xv +/ . * wq
+  Qf =. xv linear wq
   Qf =. (n_tok , n_head , +: d_head) $ , Qf
   Q =. d_head {."1 Qf
   gate =. d_head }."1 Qf
-  Q =. qn rmsnorm_e Q ; eps
-  K =. n_kv split_heads xv +/ . * wk
-  V =. n_kv split_heads xv +/ . * wv
-  K =. kn rmsnorm_e K ; eps
+  Q =. qn rmsnorm Q
+  K =. n_kv split_heads xv linear wk
+  V =. n_kv split_heads xv linear wv
+  K =. kn rmsnorm K
   pos =. i. n_tok
-  Q =. (pos ; theta ; n_rot) rope_neox Q
-  K =. (pos ; theta ; n_rot) rope_neox K
+  spec =. (<pos) , (<theta) , (<n_rot) , (<2)
+  Q =. spec rope Q
+  K =. spec rope K
   O =. attention_heads Q ; K ; V
   O =. O * sigmoid gate
-  (merge_heads O) +/ . * wo
+  (merge_heads O) linear wo
 )
 
 NB. y = x1 ; n_head ; n_kv ; d_head ; n_rot ; theta ; eps ; wq ; wk ; wv ; wo ; qn ; kn ; kc ; vc ; pos
@@ -92,21 +98,22 @@ NB. returns out1 ; kc2 ; vc2
 qwen_mha_step =: 3 : 0
   'xv n_head n_kv d_head n_rot theta eps wq wk wv wo qn kn kc vc pos' =. y
   if. 1 = #$ xv do. xv =. ,: xv end.
-  Qf =. xv +/ . * wq
+  Qf =. xv linear wq
   Qf =. (1 , n_head , +: d_head) $ , Qf
   Q =. d_head {."1 Qf
   gate =. d_head }."1 Qf
-  Q =. qn rmsnorm_e Q ; eps
-  K =. n_kv split_heads xv +/ . * wk
-  V =. n_kv split_heads xv +/ . * wv
-  K =. kn rmsnorm_e K ; eps
-  Q =. ((, pos) ; theta ; n_rot) rope_neox Q
-  K =. ((, pos) ; theta ; n_rot) rope_neox K
+  Q =. qn rmsnorm Q
+  K =. n_kv split_heads xv linear wk
+  V =. n_kv split_heads xv linear wv
+  K =. kn rmsnorm K
+  spec =. ((<, pos) , (<theta) , (<n_rot) , (<2))
+  Q =. spec rope Q
+  K =. spec rope K
   kc =. kc , K
   vc =. vc , V
   O =. attention_heads Q ; kc ; vc
   O =. O * sigmoid gate
-  out =. (merge_heads O) +/ . * wo
+  out =. (merge_heads O) linear wo
   out ; kc ; vc
 )
 
@@ -130,8 +137,8 @@ qwen_gdn_run =: 3 : 0
   end.
   if. 1 = #$ xv do. xv =. ,: xv end.
   n_tok =. # xv
-  qkv =. xv +/ . * wqkv
-  z =. xv +/ . * wz
+  qkv =. xv linear wqkv
+  z =. xv linear wz
   C =. {: $ qkv
   if. (0 = # , ccache) *. n_tok > 1 do.
     mix =. silu wconv causal_conv1d qkv
@@ -161,15 +168,15 @@ qwen_gdn_run =: 3 : 0
   v =. n_v split_heads val_dim {."1 (+: key_dim) }."1 mix
   q =. eps l2norm q
   k =. eps l2norm k
-  beta =. sigmoid xv +/ . * wbeta
-  alpha =. xv +/ . * walpha
+  beta =. sigmoid xv linear wbeta
+  alpha =. xv linear walpha
   g =. sa *"1 softplus alpha +"1 dt
   'core sstate2' =. gdn_seq q ; k ; v ; g ; beta ; sstate
   NB. gated RMSNorm: rmsnorm(core, snorm) * silu(z)
   z3 =. (n_tok , n_v , d_state) $ , z
-  core =. (snorm rmsnorm_e core ; eps) * silu z3
+  core =. (snorm rmsnorm core) * silu z3
   out =. (n_tok , val_dim) $ , core
-  out =. out +/ . * wout
+  out =. out linear wout
   out ; ccache2 ; sstate2
 )
 
@@ -182,7 +189,7 @@ NB. ---------------------------------------------------------------
 
 qwen_ffn =: 3 : 0
   'h post_n wg wu wd eps' =. y
-  r =. post_n rmsnorm_e h ; eps
+  r =. post_n rmsnorm h
   h + ffn_swiglu r ; wg ; wu ; wd
 )
 
@@ -198,12 +205,12 @@ block_full =: 3 : 0
   kind =. layer_kind layer
   if. kind -: 'attn' do.
     'knd attn_n wq wk wv wo qn kn post_n wg wu wd' =. layer
-    h =. attn_n rmsnorm_e xv ; eps
+    h =. attn_n rmsnorm xv
     a =. qwen_mha_full h ; nH ; n_kv ; d_head ; n_rot ; th ; eps ; wq ; wk ; wv ; wo ; qn ; kn
     qwen_ffn (xv + a) ; post_n ; wg ; wu ; wd ; eps
   else.
     'knd attn_n wqkv wz wconv dt sa wbeta walpha snorm wout post_n wg wu wd' =. layer
-    h =. attn_n rmsnorm_e xv ; eps
+    h =. attn_n rmsnorm xv
     'a cc ss' =. qwen_gdn_run h ; wqkv ; wz ; wconv ; dt ; sa ; wbeta ; walpha ; snorm ; wout ; eps ; dstate ; nk ; nv ; dc
     qwen_ffn (xv + a) ; post_n ; wg ; wu ; wd ; eps
   end.
@@ -222,13 +229,13 @@ block_step =: 3 : 0
   kind =. layer_kind layer
   if. kind -: 'attn' do.
     'knd attn_n wq wk wv wo qn kn post_n wg wu wd' =. layer
-    h =. attn_n rmsnorm_e xv ; eps
+    h =. attn_n rmsnorm xv
     'a c1 c2' =. qwen_mha_step h ; nH ; n_kv ; d_head ; n_rot ; th ; eps ; wq ; wk ; wv ; wo ; qn ; kn ; c1 ; c2 ; pos
     out =. qwen_ffn (xv + a) ; post_n ; wg ; wu ; wd ; eps
     (<out) , (<c1) , (<c2)
   else.
     'knd attn_n wqkv wz wconv dt sa wbeta walpha snorm wout post_n wg wu wd' =. layer
-    h =. attn_n rmsnorm_e xv ; eps
+    h =. attn_n rmsnorm xv
     'a c1 c2' =. qwen_gdn_run h ; wqkv ; wz ; wconv ; dt ; sa ; wbeta ; walpha ; snorm ; wout ; eps ; dstate ; nk ; nv ; dc ; c1 ; c2
     out =. qwen_ffn (xv + a) ; post_n ; wg ; wu ; wd ; eps
     (<out) , (<c1) , (<c2)

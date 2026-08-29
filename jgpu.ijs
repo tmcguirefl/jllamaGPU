@@ -35,7 +35,9 @@ Q4_K =: 12
 Q5_K =: 13
 Q6_K =: 14
 
-NB. x linear W  — x is n_tok x n_in, W is n_out x n_in (GGUF / quantized layout)
+NB. x linear W  — x is n_tok x n_in, W is n_out x n_in (GGUF / quantized).
+NB. Engine +/ .* already maps J axes to ggml; |: here is J shape so W stays
+NB. LEFT (last axis = K). Do not |: a packed weight.
 linear =: 4 : '|: y +/ .* |: x'
 
 NB. Llama-style SwiGLU. y = x ; Wg ; Wu ; Wd  (W* are n_out x n_in)
@@ -44,5 +46,8 @@ swiglu =: 3 : 0
   h =. (silu xv linear wg) * (xv linear wu)
   h linear wd
 )
+
+NB. Embeddings and 1-d gains must be F32 for { and rmsnorm. Load-time only.
+asf32 =: $. @: ($.^:_1)
 
 cocurrent 'base'

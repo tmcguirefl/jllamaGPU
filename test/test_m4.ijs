@@ -57,7 +57,7 @@ test_fixture_exists =: 3 : 0
 
 test_gguf_header_meta =: 3 : 0
   load =. gguf_load FIXTURE
-  'meta tinfos align data_off bytes' =. > load
+  'meta tinfos align data_off path' =. > load
   assert. 32 = align
   exp =. read_expect ''
   want_off =. ". 'data_off' expect_line exp
@@ -83,26 +83,27 @@ test_gguf_header_meta =: 3 : 0
 test_tensor_shapes_values =: 3 : 0
   load =. gguf_load FIXTURE
   exp =. read_expect ''
-  wte =. load gguf_tensor 'token_embd.weight'
+  wte =. $.^:_1 load gguf_tensor 'token_embd.weight'
   assert. 8 4 -: $ wte
   wte0 =. parse_floats 'wte0' expect_line exp
   NB. F16 roundtrip - looser tol
   assert. *./ (1e_3 > | wte0 - 0 { wte)
-  an =. load gguf_tensor 'blk.0.attn_norm.weight'
+  an =. $.^:_1 load gguf_tensor 'blk.0.attn_norm.weight'
   assert. 1 = #$ an
   assert. 4 = # an
   an_e =. parse_floats 'attn_norm' expect_line exp
   assert. an_e allclose an
-  wq =. load gguf_tensor 'blk.0.attn_q.weight'
+  wq =. $.^:_1 load gguf_tensor 'blk.0.attn_q.weight'
   assert. 4 4 -: $ wq
   wq00 =. ". 'wq00' expect_line exp
+  NB. GGUF layout is n_out x n_in (not the old n_in x n_out transpose)
   assert. 1e_3 > | wq00 - (<0 0) { wq
-  lm =. load gguf_tensor 'output.weight'
-  assert. 4 8 -: $ lm
-  wd =. load gguf_tensor 'blk.0.ffn_down.weight'
-  assert. 8 4 -: $ wd
-  wg =. load gguf_tensor 'blk.0.ffn_gate.weight'
-  assert. 4 8 -: $ wg
+  lm =. $.^:_1 load gguf_tensor 'output.weight'
+  assert. 8 4 -: $ lm
+  wd =. $.^:_1 load gguf_tensor 'blk.0.ffn_down.weight'
+  assert. 4 8 -: $ wd
+  wg =. $.^:_1 load gguf_tensor 'blk.0.ffn_gate.weight'
+  assert. 8 4 -: $ wg
   1
 )
 
@@ -115,13 +116,13 @@ test_model_from_gguf =: 3 : 0
   assert. 1e_3 > | theta - 10000
   assert. 8 4 -: $ wte
   assert. 4 = # ln_f
-  assert. 4 8 -: $ lm_head
+  assert. 8 4 -: $ lm_head
   assert. 1 = # layers
   L =. 0 { layers
   'attn_n wq wk wv wo ffn_n wg wu wd' =. > L
   assert. 4 4 -: $ wq
-  assert. 4 8 -: $ wg
-  assert. 8 4 -: $ wd
+  assert. 8 4 -: $ wg
+  assert. 4 8 -: $ wd
   1
 )
 

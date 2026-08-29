@@ -5,7 +5,8 @@ NB.   <"_ (hparams ; wte ; layers ; ln_f ; lm_head)
 NB. hparams = open list:
 NB.   n_vocab ; n_embd ; n_head ; n_layer ; n_ff ; theta ; n_head_kv
 NB. layers  = list of layer boxes (each layer is one scalar box of 9 weights)
-NB. Under GQA, Wk/Wv are n_embd x (n_head_kv * d_head); Wq/Wo stay square.
+NB. Under GQA, Wk/Wv are (n_head_kv * d_head) x n_embd (n_out x n_in).
+NB. Wq/Wo stay square n_embd x n_embd. All weights are GPU nouns.
 NB.
 NB. Synthetic models use deterministic integer-derived weights (no RNG).
 NB.
@@ -20,8 +21,11 @@ NB.   5. Pure-numeric packs may still use  ;
 
 cocurrent 'jllamamodel'
 
-NB. Tensor helpers into this locale; matmul is +/ . *
 load ROOT_jllamasys_ , 'core/tensor.ijs'
+silu =: silu_jgpu_
+softmax =: softmax_jgpu_
+rmsnorm =: rmsnorm_jgpu_
+linear =: linear_jgpu_
 block_full =: block_full_jllamablock_
 block_step =: block_step_jllamablock_
 block_prefill_cached =: block_prefill_cached_jllamablock_
@@ -34,12 +38,12 @@ NB. ---------------------------------------------------------------
 NB. Weight builders
 NB. ---------------------------------------------------------------
 
-NB. shape packw seed -> small deterministic weights
+NB. shape packw seed -> small deterministic GPU F32 weights (GGUF n_out x n_in)
 packw =: 4 : 0
   shape =. x
   seed =. y
   n =. */ shape
-  shape $ 0.02 * <: 23 | seed + 3 * i. n
+  $. shape $ 0.02 * <: 23 | seed + 3 * i. n
 )
 
 NB. y = n_embd ; n_head ; n_ff ; seed [; n_head_kv]
@@ -57,15 +61,15 @@ make_layer =: 3 : 0
   'make_layer: n_head_kv > 0' assert n_head_kv > 0
   d_head =. n_embd % n_head
   n_kv_dim =. n_head_kv * d_head
-  attn_n =. n_embd $ 1 + 0.01 * i. n_embd
-  ffn_n =. n_embd $ 1 + 0.01 * |. i. n_embd
+  attn_n =. $. n_embd $ 1 + 0.01 * i. n_embd
+  ffn_n =. $. n_embd $ 1 + 0.01 * |. i. n_embd
   wq =. (n_embd , n_embd) packw seed + 1
-  wk =. (n_embd , n_kv_dim) packw seed + 2
-  wv =. (n_embd , n_kv_dim) packw seed + 3
+  wk =. (n_kv_dim , n_embd) packw seed + 2
+  wv =. (n_kv_dim , n_embd) packw seed + 3
   wo =. (n_embd , n_embd) packw seed + 4
-  wg =. (n_embd , n_ff) packw seed + 5
-  wu =. (n_embd , n_ff) packw seed + 6
-  wd =. (n_ff , n_embd) packw seed + 7
+  wg =. (n_ff , n_embd) packw seed + 5
+  wu =. (n_ff , n_embd) packw seed + 6
+  wd =. (n_embd , n_ff) packw seed + 7
   <"_ (attn_n ; wq ; wk ; wv ; wo ; ffn_n ; wg ; wu ; wd)
 )
 
@@ -91,8 +95,8 @@ make_synthetic =: 3 : 0
   for_i. i. n_layer do.
     layers =. layers , make_layer n_embd ; n_head ; n_ff ; (seed + 1000 + 50 * i) ; n_head_kv
   end.
-  ln_f =. n_embd $ 1 + 0.005 * i. n_embd
-  lm_head =. (n_embd , n_vocab) packw seed + 200
+  ln_f =. $. n_embd $ 1 + 0.005 * i. n_embd
+  lm_head =. (n_vocab , n_embd) packw seed + 200
   hparams =. n_vocab ; n_embd ; n_head ; n_layer ; n_ff ; theta ; n_head_kv
   <"_ (hparams ; wte ; layers ; ln_f ; lm_head)
 )
@@ -111,14 +115,14 @@ NB. model logits_last xhidden  (last token only)
 logits_last =: 4 : 0
   'hp wte layers ln_f lm_head' =. > x
   h =. ln_f rmsnorm y
-  ({: h) +/ . * lm_head
+  $.^:_1 (_1 { h) linear lm_head
 )
 
 NB. model logits_all xhidden
 logits_all =: 4 : 0
   'hp wte layers ln_f lm_head' =. > x
   h =. ln_f rmsnorm y
-  h +/ . * lm_head
+  $.^:_1 h linear lm_head
 )
 
 NB. Unpack hparams; accept legacy 6-item (MHA) packs
