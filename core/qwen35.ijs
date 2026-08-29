@@ -29,7 +29,7 @@ attention_heads =: attention_heads_jllamaattn_
 kv_empty =: kv_empty_jllamaattn_
 ffn_swiglu =: ffn_swiglu_jllamablock_
 sigmoid =: sigmoid_jllamagdn_
-NB. sigmoid uses ^ — nonce on GPU until libj wraps ggml_sigmoid (128!:41).
+NB. sigmoid is 1 % 1 + ^@:-  — GPU F32 ^ and - are engine primitives.
 softplus =: softplus_jllamagdn_
 l2norm =: l2norm_jllamagdn_
 causal_conv1d =: causal_conv1d_jllamagdn_
@@ -163,14 +163,18 @@ qwen_gdn_run =: 3 : 0
   end.
   key_dim =. n_k * d_state
   val_dim =. n_v * d_state
-  q =. n_k split_heads key_dim {."1 mix
-  k =. n_k split_heads key_dim {."1 key_dim }."1 mix
-  v =. n_v split_heads val_dim {."1 (+: key_dim) }."1 mix
+  NB. mix is n_tok x (2*n_k + n_v)*d_state. Split via reshape + { (also {."1 on GPU).
+  nparts =. (+: n_k) + n_v
+  r =. 1 0 2 |: (n_tok , nparts , d_state) $ , mix
+  q =. 1 0 2 |: (i. n_k) { r
+  k =. 1 0 2 |: (n_k + i. n_k) { r
+  v =. 1 0 2 |: ((+: n_k) + i. n_v) { r
   q =. eps l2norm q
   k =. eps l2norm k
   beta =. sigmoid xv linear wbeta
   alpha =. xv linear walpha
   g =. sa *"1 softplus alpha +"1 dt
+  if. 0 = # , sstate do. sstate =. 0 $ 0 end.
   'core sstate2' =. gdn_seq q ; k ; v ; g ; beta ; sstate
   NB. gated RMSNorm: rmsnorm(core, snorm) * silu(z)
   z3 =. (n_tok , n_v , d_state) $ , z
@@ -242,31 +246,52 @@ block_step =: 3 : 0
   end.
 )
 
-NB. Prefill via successive steps (builds per-layer cache)
+NB. Full-sequence MHA that also returns K/V cache for decode.
+qwen_mha_prefill =: 3 : 0
+  'xv n_head n_kv d_head n_rot theta eps wq wk wv wo qn kn' =. y
+  if. 1 = #$ xv do. xv =. ,: xv end.
+  n_tok =. # xv
+  Qf =. xv linear wq
+  Qf =. (n_tok , n_head , +: d_head) $ , Qf
+  Q =. d_head {."1 Qf
+  gate =. d_head }."1 Qf
+  Q =. qn rmsnorm Q
+  K =. n_kv split_heads xv linear wk
+  V =. n_kv split_heads xv linear wv
+  K =. kn rmsnorm K
+  pos =. i. n_tok
+  spec =. (<pos) , (<theta) , (<n_rot) , (<2)
+  Q =. spec rope Q
+  K =. spec rope K
+  O =. attention_heads Q ; K ; V
+  O =. O * sigmoid gate
+  out =. (merge_heads O) linear wo
+  out ; K ; V
+)
+
+NB. Prefill as one sequence (not per-token step). Returns out ; cache1 ; cache2.
 block_prefill_cached =: 3 : 0
   if. 4 = # y do.
     'xv n_head layer theta' =. y
   else.
     'xv n_head layer' =. y
   end.
-  layerbox =. <"_ layer
-  n_embd =. {: $ xv
+  if. 1 = #$ xv do. xv =. ,: xv end.
   'nH n_kv d_head n_rot th eps dc dstate nk nv' =. QHP
   kind =. layer_kind layer
   if. kind -: 'attn' do.
-    'kc vc' =. kv_empty n_kv , d_head
+    'knd attn_n wq wk wv wo qn kn post_n wg wu wd' =. layer
+    h =. attn_n rmsnorm xv
+    'a kc vc' =. qwen_mha_prefill h ; nH ; n_kv ; d_head ; n_rot ; th ; eps ; wq ; wk ; wv ; wo ; qn ; kn
+    out =. qwen_ffn (xv + a) ; post_n ; wg ; wu ; wd ; eps
+    (<out) , (<kc) , (<vc)
   else.
-    C =. (nk * dstate * 2) + nv * dstate
-    kc =. conv_empty dc , C
-    vc =. gdn_empty nv , dstate
+    'knd attn_n wqkv wz wconv dt sa wbeta walpha snorm wout post_n wg wu wd' =. layer
+    h =. attn_n rmsnorm xv
+    'a kc vc' =. qwen_gdn_run h ; wqkv ; wz ; wconv ; dt ; sa ; wbeta ; walpha ; snorm ; wout ; eps ; dstate ; nk ; nv ; dc
+    out =. qwen_ffn (xv + a) ; post_n ; wg ; wu ; wd ; eps
+    (<out) , (<kc) , (<vc)
   end.
-  outs =. (0 , n_embd) $ 0
-  for_t. i. # xv do.
-    x1 =. ,: t { xv
-    'o1 kc vc' =. block_step (<x1) , (<nH) , layerbox , (<kc) , (<vc) , (<t) , (<th)
-    outs =. outs , o1
-  end.
-  (<outs) , (<kc) , (<vc)
 )
 
 cocurrent 'base'

@@ -10,7 +10,9 @@ NB.   M += delta */ k
 NB.   out = (M +/ . * q) % %: d
 NB.
 NB. Causal conv1d: per-channel FIR of length d_conv, left-padded with zeros.
-NB. Kernel layout in this locale: C x d_conv  (one kernel row per channel).
+NB. Kernel from GGUF 128!:33 is C x d_conv (ggml ne=[d_conv,C], J reverses).
+NB. GPU insert +/"1 is engine FEAT_gpu_plus_reduce (sum last axis).
+NB. Sequence GDN is 128!:42 (one Metal kernel), not a J head/token loop.
 
 cocurrent 'jllamagdn'
 
@@ -29,10 +31,10 @@ l2norm =: 3 : 0
   y % %: x + +/"1 *: y
 )
 
-NB. Empty GDN state: y = n_v , d  -> (n_v x d x d) $ 0
+NB. Empty GDN state: y = n_v , d  -> GPU (n_v x d x d) $ 0
 gdn_empty =: 3 : 0
   'n_v d' =. y
-  (n_v , d , d) $ 0
+  $. (n_v , d , d) $ 0
 )
 
 NB. Empty conv cache: y = d_conv , C  -> (d_conv-1) x C
@@ -41,7 +43,6 @@ conv_empty =: 3 : 0
   ((dc - 1) , C) $ 0
 )
 
-NB. ---------------------------------------------------------------
 NB. Causal conv1d
 NB. x = kernel (C x d_conv)
 NB. y = n_tok x C
@@ -83,7 +84,7 @@ NB. Q,K: n_tok x n_k x d
 NB. V:   n_tok x n_v x d
 NB. g, beta: n_tok x n_v   (scalar gate / beta per head)
 NB. state: n_v x d x d  (M = S^T); omitted => zeros
-NB. n_v must be a multiple of n_k (repeat Q/K heads if needed).
+NB. n_v must be a multiple of n_k (fused op broadcasts K heads).
 NB. returns outs (n_tok x n_v x d) ; state2
 NB. ---------------------------------------------------------------
 gdn_seq =: 3 : 0
@@ -93,50 +94,14 @@ gdn_seq =: 3 : 0
   else.
     'Q K V g beta' =. y
   end.
-  n_tok =. # V
   n_v =. 1 { $ V
   d =. {: $ V
   n_k =. 1 { $ Q
   'gdn_seq: n_k must divide n_v' assert 0 = n_k | n_v
-  if. n_k < n_v do.
-    n_rep =. n_v % n_k
-    idx =. n_rep # i. n_k
-    Q =. 1 0 2 |: idx { 1 0 2 |: Q
-    K =. 1 0 2 |: idx { 1 0 2 |: K
-  end.
   if. (0 = # , state) +. 0 = */ $ state do.
-    state =. (n_v , d , d) $ 0
+    state =. $. (n_v , d , d) $ 0
   end.
-  scale =. % %: d
-  Qb =. 1 0 2 |: Q
-  Kb =. 1 0 2 |: K
-  Vb =. 1 0 2 |: V
-  gb =. |: g
-  bb =. |: beta
-  olist =. (n_v , n_tok , d) $ 0
-  st2 =. (n_v , d , d) $ 0
-  for_h. i. n_v do.
-    M =. h { state
-    qh =. h { Qb
-    kh =. h { Kb
-    vh =. h { Vb
-    gh =. h { gb
-    bh =. h { bb
-    oh =. (0 , d) $ 0
-    for_t. i. n_tok do.
-      M =. M * ^ t { gh
-      kt =. t { kh
-      vt =. t { vh
-      qt =. t { qh
-      delta =. (t { bh) * vt - M +/ . * kt
-      M =. M + delta */ kt
-      oh =. oh , scale * M +/ . * qt
-    end.
-    olist =. oh h} olist
-    st2 =. M h} st2
-  end.
-  outs =. 1 0 2 |: olist
-  outs ; st2
+  128!:42 Q ; K ; V ; g ; beta ; state
 )
 
 cocurrent 'base'

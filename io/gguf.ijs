@@ -453,7 +453,7 @@ model_from_gguf_qwen =: 3 : 0
     if. is_gdn do.
       wqkv =. load gguf_tensor p , 'attn_qkv.weight'
       wz =. load gguf_tensor p , 'attn_gate.weight'
-      wconv =. load gguf_tensor p , 'ssm_conv1d.weight'
+      wconv =. asf32_jgpu_ load gguf_tensor p , 'ssm_conv1d.weight'
       dt =. asf32_jgpu_ load gguf_tensor p , 'ssm_dt.bias'
       if. load gguf_has p , 'ssm_a' do.
         sa =. asf32_jgpu_ load gguf_tensor p , 'ssm_a'
