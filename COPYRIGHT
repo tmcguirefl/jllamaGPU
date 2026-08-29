@@ -1,0 +1,24 @@
+jllamaGPU
+Copyright (C) 2026 Tom McGuire
+
+SPDX-License-Identifier: GPL-3.0-only
+
+This program is a J application that depends on a fork of the J language
+runtime engine (Jsoftware jsource, GPU/ggml backend). That engine is dual
+licensed by Jsoftware (commercial or GNU GPL v3). This project uses the
+engine under GPL v3, so this program is licensed under the GNU General
+Public License version 3 only — the same terms.
+
+You can redistribute it and/or modify it under the terms of the GNU
+General Public License as published by the Free Software Foundation,
+version 3 of the License (not “or later”).
+
+This program is distributed in the hope that it will be useful, but
+WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
+Public License for more details.
+
+The full license is in LICENSE (GNU GPL v3). You should have received a
+copy with this program; if not, see <https://www.gnu.org/licenses/>.
+
+Third-party notices (ggml MIT, Jsoftware jsource) are in THIRD_PARTY.md.

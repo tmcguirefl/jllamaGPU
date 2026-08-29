@@ -262,10 +262,14 @@ GPU nouns **may** be boxed (`<Wq` works).
 
 ## 10. Licenses (for a GitHub push)
 
+This program depends on a **fork of the J runtime**, so **jllamaGPU is
+GPL-3.0-only** — the same option this project uses for Jsoftware jsource.
+
 | Piece | License | Where |
 |-------|---------|--------|
-| This jllama tree (J scripts, docs) | MIT | `LICENSE` |
-| J engine / jsource (including GPU glue in `jsrc/gpu*.c`) | Jsoftware commercial **or** GPL-3 | `jsource/LICENSE`, `LICENSE-GPL3` |
-| ggml | MIT | `jsource/third_party/ggml.LICENSE` |
+| This tree (J scripts, docs) | GPL-3.0-only | `LICENSE`, `COPYRIGHT` |
+| J engine / jsource (including `jsrc/gpu*.c`) | Jsoftware commercial **or** GPL-3; **this project uses GPL-3** | `jsource/LICENSE`, `LICENSE-GPL3` |
+| ggml | MIT (GPL-3 compatible) | `jsource/third_party/ggml.LICENSE` |
 
-Details: `THIRD_PARTY.md`. Shipping `libj.dylib` is a jsource distribution, not covered by this repo's MIT alone.
+Details: `THIRD_PARTY.md`. A release that ships `libj.dylib` must include
+GPL-3 source for the engine fork as well as this application.

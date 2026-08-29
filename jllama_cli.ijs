@@ -1,4 +1,5 @@
-#!/Applications/j9.8/bin/jconsole
+#!/Users/tomdevel/j9.8/bin/jconsole
+NB. jllamaGPU — GNU GPL v3 only. Copyright (C) 2026 Tom McGuire. See LICENSE.
 NB. jllama_cli - standalone shell entry
 NB.
 NB. From a clone of this tree:

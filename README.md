@@ -205,6 +205,14 @@ Full board: [docs/milestones.md](docs/milestones.md). Models detail: [docs/model
 
 ## License
 
-- **This repository** (J scripts, docs): MIT — see `LICENSE`.
-- **J engine** (`libj`): Jsoftware dual license (commercial **or** GPL-3) — see `THIRD_PARTY.md`.
-- **ggml** (linked by the GPU engine): MIT — see `THIRD_PARTY.md`.
+**GNU GPL v3 only** (`LICENSE`, `COPYRIGHT`).
+
+This program depends on a fork of the J language runtime (Jsoftware jsource,
+GPU/ggml backend) used under GPL v3, so this tree is GPL-3 as well — not MIT.
+
+- **jllamaGPU** (this repo): GPL-3.0-only — `COPYRIGHT`, `LICENSE`
+- **J engine** (`libj`): Jsoftware dual license; this project uses the **GPL-3** option — `THIRD_PARTY.md`
+- **ggml**: MIT (compatible with GPL-3) — `THIRD_PARTY.md`
+
+A GitHub release that includes `libj.dylib` is a GPL-3 distribution of both
+the application and the engine.

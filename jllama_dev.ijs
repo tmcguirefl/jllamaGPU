@@ -1,6 +1,7 @@
+NB. jllamaGPU — GNU GPL v3 only. Copyright (C) 2026 Tom McGuire. See LICENSE.
 NB. jllama_dev - development / testing entry (not used by jllama_cli)
 NB. Prefer:
-NB.   /Applications/j9.8/bin/jconsole /path/to/jllama_dev.ijs
+NB.   /Users/tomdevel/j9.8/bin/jconsole /path/to/jllama_dev.ijs
 NB.
 NB. Loads the engine from this clone (ROOT). No ~temp publish step.
 

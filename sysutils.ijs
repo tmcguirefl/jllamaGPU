@@ -1,3 +1,4 @@
+NB. jllamaGPU — GNU GPL v3 only. Copyright (C) 2026 Tom McGuire. See LICENSE.
 NB. jllama system utilities
 NB. Locale: jllamasys
 NB.
