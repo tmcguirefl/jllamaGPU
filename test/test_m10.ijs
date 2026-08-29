@@ -38,7 +38,7 @@ test_load_hparams =: 3 : 0
   assert. 768 = n_ff
   assert. 6 = # layers
   assert. 32000 288 -: $ wte
-  assert. 288 32000 -: $ lm_head
+  assert. 32000 288 -: $ lm_head
   1
 )
 

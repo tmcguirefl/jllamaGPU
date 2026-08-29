@@ -92,6 +92,7 @@ Generate API: `m generate ids ; n_new` (numeric `;` is fine).
 - Locale: `jllamasample`
 - `generate` remains greedy (`temp=0`) for M3–M6 compatibility
 - `generate_sample (<ids),(<n_new),(<cfg)` for stochastic decoding
+- Prefill is one full-sequence pass (`block_prefill_cached`); decode is `gen_step^:n_new`
 - cfg: `temp top_k top_p seed eos_id stop_on_eos` (open numeric after pack)
 - LCG RNG; same seed => same samples
 - EOS: if `eos_id>=0` and `stop_on_eos`, append EOS token and halt

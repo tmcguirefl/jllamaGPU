@@ -88,7 +88,7 @@ NB. n_v must be a multiple of n_k (fused op broadcasts K heads).
 NB. returns outs (n_tok x n_v x d) ; state2
 NB. ---------------------------------------------------------------
 gdn_seq =: 3 : 0
-  state =. 0
+  state =. $0
   if. 6 = # y do.
     'Q K V g beta state' =. y
   else.
@@ -98,10 +98,11 @@ gdn_seq =: 3 : 0
   d =. {: $ V
   n_k =. 1 { $ Q
   'gdn_seq: n_k must divide n_v' assert 0 = n_k | n_v
-  if. (0 = # , state) +. 0 = */ $ state do.
+  NB. Atom 0 is not empty: */ $ 0 is 1. Treat missing/wrong rank as zeros.
+  if. (0 = # , state) +. 3 ~: #$ state do.
     state =. $. (n_v , d , d) $ 0
   end.
-  128!:42 Q ; K ; V ; g ; beta ; state
+  128!:42 (<Q) , (<K) , (<V) , (<g) , (<beta) , (<state)
 )
 
 cocurrent 'base'

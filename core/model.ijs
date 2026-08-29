@@ -198,30 +198,41 @@ generate =: 4 : 0
   model generate_sample (<,ids) , (<n_new) , (<default_cfg '')
 )
 
+NB. One decode sample+step. y is a 6-item boxed state:
+NB.   model ; ids ; h ; caches ; cfg ; n_left
+NB. n_left < 1 is a no-op (used after EOS so leftover  ^:  applications
+NB. do nothing). Decode is  gen_step^:n_new start  — power, not a for.
+NB. n_new must be an atom:  u^:(,n) y  uses the frame of n, not n itself.
+gen_step =: 3 : 0
+  'm ids h caches cfg n' =. y
+  n =. {. , n
+  if. n < 1 do. y return. end.
+  'temp top_k top_p seed eos_id stop_on_eos' =. cfg
+  logits =. m logits_last h
+  'nxt seed' =. sample_next (<cfg) , (<logits)
+  nxt =. {. , nxt
+  cfg =. temp , top_k , top_p , seed , eos_id , stop_on_eos
+  ids =. ids , nxt
+  if. (eos_id >: 0) *. stop_on_eos *. nxt = eos_id do.
+    (<m) , (<ids) , (<h) , (<caches) , (<cfg) , (<0)
+  else.
+    'h caches' =. m forward_step (<nxt) , (<caches) , (< <: # ids)
+    (<m) , (<ids) , (<h) , (<caches) , (<cfg) , (<n - 1)
+  end.
+)
+
 generate_sample =: 4 : 0
   model =. x
   'ids n_new cfg' =. y
   ids =. , ids
-  n_new =. ,. n_new
-  n_new =. {. n_new
+  n_new =. {. , n_new
   cfg =. sample_cfg_pack cfg
-  'temp top_k top_p seed eos_id stop_on_eos' =. cfg
   if. 0 = # ids do.
     'generate_sample: empty prompt' assert 0
   end.
-  'hp wte layers ln_f lm_head' =. > model
   'h caches' =. model forward_prefill ids
-  for. i. n_new do.
-    logits =. model logits_last h
-    'nxt seed' =. sample_next (<cfg) , (<logits)
-    NB. refresh seed inside cfg (open numeric list)
-    cfg =. (temp , top_k , top_p , seed , eos_id , stop_on_eos)
-    ids =. ids , nxt
-    if. (eos_id >: 0) *. stop_on_eos *. nxt = eos_id do. break. end.
-    pos =. <: # ids
-    'h caches' =. model forward_step (<nxt) , (<caches) , (<pos)
-  end.
-  ids
+  start =. (<model) , (<ids) , (<h) , (<caches) , (<cfg) , (<n_new)
+  > 1 { gen_step^:n_new start
 )
 
 NB. Slow oracle: full recompute every token (greedy)

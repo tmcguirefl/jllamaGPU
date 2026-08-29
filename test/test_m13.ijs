@@ -33,14 +33,15 @@ test_expand_kv =: 3 : 0
 )
 
 NB. Tiny GQA MHA weights: n_embd=8, n_head=4, n_kv=2, d_head=2
+NB. GPU / GGUF layout: W is n_out x n_in (Wk/Wv are n_kv_dim x n_embd).
 mk_gqa_case =: 3 : 0
   n_head =. 4
   n_embd =. 8
   n_kv_dim =. 4
   X =. (3 , n_embd) $ 0.05 * <: 17 | 100 + i. 3 * n_embd
   Wq =. (n_embd , n_embd) $ 0.02 * <: 19 | 3 + i. *: n_embd
-  Wk =. (n_embd , n_kv_dim) $ 0.02 * <: 19 | 7 + i. n_embd * n_kv_dim
-  Wv =. (n_embd , n_kv_dim) $ 0.02 * <: 19 | 11 + i. n_embd * n_kv_dim
+  Wk =. (n_kv_dim , n_embd) $ 0.02 * <: 19 | 7 + i. n_embd * n_kv_dim
+  Wv =. (n_kv_dim , n_embd) $ 0.02 * <: 19 | 11 + i. n_embd * n_kv_dim
   Wo =. (n_embd , n_embd) $ 0.02 * <: 19 | 13 + i. *: n_embd
   X ; n_head ; Wq ; Wk ; Wv ; Wo
 )
@@ -80,8 +81,8 @@ test_gqa_stack_kv_parity =: 3 : 0
   L =. > 0 { layers
   'attn_n wq wk wv wo ffn_n wg wu wd' =. L
   assert. 8 8 -: $ wq
-  assert. 8 4 -: $ wk
-  assert. 8 4 -: $ wv
+  assert. 4 8 -: $ wk
+  assert. 4 8 -: $ wv
   ids =. 1 2 3 5 8
   full =. m forward_full ids
   'cached caches' =. m forward_prefill ids

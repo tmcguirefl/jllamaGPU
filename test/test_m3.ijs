@@ -18,14 +18,15 @@ embed =: embed_jllamamodel_
 
 NB. ---------------------------------------------------------------
 test_ffn_swiglu =: 3 : 0
+  NB. GPU linear: W is n_out x n_in,  y =. |: W +/ .* |: x
   x =. 2 3 $ 0.1 0.2 _0.1 0.3 _0.2 0.4
-  wg =. 3 4 $ 0.05 * i. 12
-  wu =. 3 4 $ 0.04 * 1 + i. 12
-  wd =. 4 3 $ 0.03 * i. 12
+  wg =. |: 3 4 $ 0.05 * i. 12
+  wu =. |: 3 4 $ 0.04 * 1 + i. 12
+  wd =. |: 4 3 $ 0.03 * i. 12
   got =. ffn_swiglu x ; wg ; wu ; wd
-  gate =. silu x +/ . * wg
-  up =. x +/ . * wu
-  exp =. (gate * up) +/ . * wd
+  gate =. silu x +/ . * |: wg
+  up =. x +/ . * |: wu
+  exp =. (gate * up) +/ . * |: wd
   assert. exp allclose got
   assert. 2 3 -: $ got
   1

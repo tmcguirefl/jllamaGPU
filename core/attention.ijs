@@ -196,7 +196,7 @@ mha_step =: 3 : 0
   out ; kc ; vc
 )
 
-NB. Prefill by successive mha_step (builds cache)
+NB. Full-sequence MHA that also returns K/V cache for decode.
 NB. y = x ; n_head ; wq ; wk ; wv ; wo  [; theta]
 NB. returns outs ; kcache ; vcache
 mha_prefill_cached =: 3 : 0
@@ -206,17 +206,13 @@ mha_prefill_cached =: 3 : 0
     'xv n_head wq wk wv wo' =. y
     theta =. DEFAULT_THETA
   end.
-  n_embd =. {: $ xv
-  d_head =. n_embd % n_head
-  n_kv =. ({. $ wk) % d_head
-  'kc vc' =. kv_empty n_kv , d_head
-  outs =. (0 , n_embd) $ 0
-  for_t. i. # xv do.
-    x1 =. ,: t { xv
-    'o1 kc vc' =. mha_step x1 ; n_head ; wq ; wk ; wv ; wo ; kc ; vc ; t ; theta
-    outs =. outs , o1
-  end.
-  outs ; kc ; vc
+  if. 1 = #$ xv do. xv =. ,: xv end.
+  'Q K V' =. n_head project_qkv xv ; wq ; wk ; wv
+  pos =. i. # xv
+  'Q K' =. (pos ; theta) apply_rope_qk Q ; K
+  O =. attention_heads Q ; K ; V
+  out =. (merge_heads O) linear wo
+  out ; K ; V
 )
 
 cocurrent 'base'

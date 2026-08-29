@@ -497,7 +497,8 @@ model_from_gguf_phi =: 3 : 0
   'model_from_gguf_phi: n_embd not divisible by n_head' assert 0 = n_head | n_embd
   d_head =. n_embd % n_head
   n_rot =. {. load gguf_meta_default 'phi3.rope.dimension_count' ; d_head
-  'model_from_gguf_phi: partial RoPE not implemented' assert n_rot = d_head
+  'model_from_gguf_phi: n_rot must be even and <= d_head' assert (n_rot > 0) *. (n_rot <: d_head) *. 0 = 2 | n_rot
+  N_ROT_jllamaphi_ =: n_rot
   theta =. {. load gguf_meta_default 'phi3.rope.freq_base' ; DEFAULT_THETA
   eps =. {. load gguf_meta_default 'phi3.attention.layer_norm_rms_epsilon' ; 1e_5
   RMS_EPS_jllamamodel_ =: eps
@@ -526,11 +527,11 @@ model_from_gguf_phi =: 3 : 0
       wk =. load gguf_tensor pref , 'attn_k.weight'
       wv =. load gguf_tensor pref , 'attn_v.weight'
     else.
-      qkv =. $.^:_1 load gguf_tensor pref , 'attn_qkv.weight'
+      qkv =. load gguf_tensor pref , 'attn_qkv.weight'
       'model_from_gguf_phi: bad attn_qkv out' assert ({. $ qkv) = n_q + n_k + n_k
-      wq =. $. n_q {. qkv
-      wk =. $. n_k {. n_q }. qkv
-      wv =. $. n_k {. (n_q + n_k) }. qkv
+      wq =. n_q {. qkv
+      wk =. n_k {. n_q }. qkv
+      wv =. n_k {. (n_q + n_k) }. qkv
     end.
     wo =. load gguf_tensor pref , 'attn_output.weight'
     wd =. load gguf_tensor pref , 'ffn_down.weight'
@@ -538,11 +539,11 @@ model_from_gguf_phi =: 3 : 0
       wg =. load gguf_tensor pref , 'ffn_gate.weight'
       wu =. load gguf_tensor pref , 'ffn_up.weight'
     else.
-      fused =. $.^:_1 load gguf_tensor pref , 'ffn_up.weight'
+      fused =. load gguf_tensor pref , 'ffn_up.weight'
       'model_from_gguf_phi: fused ffn_up out must be even' assert 0 = 2 | {. $ fused
       nf =. -: {. $ fused
-      wg =. $. nf {. fused
-      wu =. $. nf }. fused
+      wg =. nf {. fused
+      wu =. nf }. fused
     end.
     'model_from_gguf_phi: bad attn_q out' assert ({. $ wq) = n_q
     'model_from_gguf_phi: bad attn_k out' assert ({. $ wk) = n_k

@@ -38,7 +38,7 @@ GQA: Wk/Wv may be narrower; cache is `n_past x n_head_kv x d_head`.
 | `ffn_swiglu` | SiLU(gate)*up then down |
 | `block_full` | full-seq pre-norm block |
 | `block_step` | one token + layer KV |
-| `block_prefill_cached` | prefill via steps |
+| `block_prefill_cached` | full-sequence prefill + KV cache |
 
 Layer (one scalar box):
 `<"_ (attn_norm ; wq ; wk ; wv ; wo ; ffn_norm ; w_gate ; w_up ; w_down)`
@@ -54,7 +54,8 @@ Call packs use `,` of scalar boxes, e.g.
 | `forward_full` | no-cache stack |
 | `forward_prefill` / `forward_step` | KV path |
 | `generate` | greedy with cache (`temp=0`) |
-| `generate_sample` | temp/top-k/top-p + EOS stop |
+| `generate_sample` | temp/top-k/top-p + EOS stop (`gen_step^:n`) |
+| `gen_step` | one decode step; power is sequential generate |
 | `generate_fullrecompute` | slow greedy oracle |
 
 ### jllamasample (M7)

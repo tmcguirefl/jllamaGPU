@@ -29,6 +29,7 @@ linear =: linear_jgpu_
 swiglu =: swiglu_jgpu_
 mha_full =: mha_full_jllamaattn_
 mha_step =: mha_step_jllamaattn_
+mha_prefill_cached =: mha_prefill_cached_jllamaattn_
 kv_empty =: kv_empty_jllamaattn_
 DEFAULT_THETA =: DEFAULT_THETA_jllamarope_
 
@@ -80,7 +81,7 @@ block_step =: 3 : 0
   (<out) , (<kc) , (<vc)
 )
 
-NB. Prefill one block via successive steps
+NB. Prefill one block as a full sequence (not per-token step).
 NB. y = (<x) , (<n_head) , layerbox [ , (<theta) ]
 NB. returns (<outs) , (<kc) , (<vc)
 block_prefill_cached =: 3 : 0
@@ -90,19 +91,14 @@ block_prefill_cached =: 3 : 0
     'xv n_head layer' =. y
     theta =. DEFAULT_THETA
   end.
-  layerbox =. <"_ layer
-  n_embd =. {: $ xv
-  d_head =. n_embd % n_head
+  if. 1 = #$ xv do. xv =. ,: xv end.
   'attn_n wq wk wv wo ffn_n wg wu wd' =. layer
-  n_kv =. ({. $ wk) % d_head
-  'kc vc' =. kv_empty n_kv , d_head
-  outs =. (0 , n_embd) $ 0
-  for_t. i. # xv do.
-    x1 =. ,: t { xv
-    'o1 kc vc' =. block_step (<x1) , (<n_head) , layerbox , (<kc) , (<vc) , (<t) , (<theta)
-    outs =. outs , o1
-  end.
-  (<outs) , (<kc) , (<vc)
+  h =. attn_n rmsnorm xv
+  'a kc vc' =. mha_prefill_cached h ; n_head ; wq ; wk ; wv ; wo ; theta
+  h =. xv + a
+  r =. ffn_n rmsnorm h
+  out =. h + ffn_swiglu r ; wg ; wu ; wd
+  (<out) , (<kc) , (<vc)
 )
 
 cocurrent 'base'

@@ -43,7 +43,7 @@ Locales / modules:
   jllamarope    rope rotate_half
   jllamaattn    mha_full mha_step mha_prefill_cached
   jllamablock   ffn_swiglu block_full block_step
-  jllamamodel   make_synthetic generate generate_sample
+  jllamamodel   make_synthetic generate generate_sample gen_step
   jllamasample  sample_next top_k_filter top_p_filter
   jllamagguf    gguf_load gguf_tensor model_from_gguf
   jllamavocab   vocab_from_gguf encode decode (gpt2/llama-bpe + llama SPM)

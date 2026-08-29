@@ -28,10 +28,12 @@ kv_empty =: kv_empty_jllamaattn_
 ffn_swiglu =: ffn_swiglu_jllamablock_
 DEFAULT_THETA =: DEFAULT_THETA_jllamarope_
 
-NB. pos or (pos;theta) apply_rope_qk Q;K  — NeoX mode 2
+NB. pos or (pos;theta) apply_rope_qk Q;K  — NeoX mode 2, n_rot from GGUF (Phi-4-mini is 96 of 128)
 apply_rope_qk =: 4 : 0
   'Q K' =. y
   d =. {: $ Q
+  n_rot =. d
+  if. 0 = 4!:0 <'N_ROT' do. n_rot =. N_ROT end.
   if. 32 = 3!:0 x do.
     pad =. x
     if. 1 = # pad do. pad =. pad , < DEFAULT_THETA end.
@@ -40,7 +42,7 @@ apply_rope_qk =: 4 : 0
     pos =. x
     theta =. DEFAULT_THETA
   end.
-  spec =. (<, pos) , (<theta) , (<d) , (<2)
+  spec =. (<, pos) , (<theta) , (<n_rot) , (<2)
   (spec rope Q) ; (spec rope K)
 )
 
@@ -118,6 +120,29 @@ block_step =: 3 : 0
   (<out) , (<kc) , (<vc)
 )
 
+NB. Full-sequence MHA that also returns K/V cache (NeoX RoPE).
+mha_prefill =: 3 : 0
+  if. 7 = # y do.
+    'xv n_head wq wk wv wo theta' =. y
+  else.
+    'xv n_head wq wk wv wo' =. y
+    theta =. DEFAULT_THETA
+  end.
+  if. 1 = #$ xv do. xv =. ,: xv end.
+  n_embd =. {: $ xv
+  d_head =. n_embd % n_head
+  n_kv =. ({. $ wk) % d_head
+  Q =. n_head split_heads xv linear wq
+  K =. n_kv split_heads xv linear wk
+  V =. n_kv split_heads xv linear wv
+  pos =. i. # xv
+  'Q K' =. (pos ; theta) apply_rope_qk Q ; K
+  O =. attention_heads Q ; K ; V
+  out =. (merge_heads O) linear wo
+  out ; K ; V
+)
+
+NB. Prefill one block as a full sequence (not per-token step).
 block_prefill_cached =: 3 : 0
   if. 4 = # y do.
     'xv n_head layer theta' =. y
@@ -125,19 +150,14 @@ block_prefill_cached =: 3 : 0
     'xv n_head layer' =. y
     theta =. DEFAULT_THETA
   end.
-  layerbox =. <"_ layer
-  n_embd =. {: $ xv
-  d_head =. n_embd % n_head
+  if. 1 = #$ xv do. xv =. ,: xv end.
   'attn_n wq wk wv wo ffn_n wg wu wd' =. layer
-  n_kv =. ({. $ wk) % d_head
-  'kc vc' =. kv_empty n_kv , d_head
-  outs =. (0 , n_embd) $ 0
-  for_t. i. # xv do.
-    x1 =. ,: t { xv
-    'o1 kc vc' =. block_step (<x1) , (<n_head) , layerbox , (<kc) , (<vc) , (<t) , (<theta)
-    outs =. outs , o1
-  end.
-  (<outs) , (<kc) , (<vc)
+  h =. attn_n rmsnorm xv
+  'a kc vc' =. mha_prefill h ; n_head ; wq ; wk ; wv ; wo ; theta
+  h =. xv + a
+  r =. ffn_n rmsnorm h
+  out =. h + ffn_swiglu r ; wg ; wu ; wd
+  (<out) , (<kc) , (<vc)
 )
 
 cocurrent 'base'
