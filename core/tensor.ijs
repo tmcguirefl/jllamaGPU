@@ -77,5 +77,5 @@ linear =: 3 : 0
 
 NB. Causal attention mask (n x n).
 NB. 0 where key pos <= query pos (allowed); MASK_VAL above diagonal.
-NB. Usage:  softmax mask + scores
+NB. Usage:  scores + causal_mask n   (mixed add uploads a dense mask once)
 causal_mask =: MASK_VAL * </~@i.

@@ -56,12 +56,9 @@ causal_conv1d =: 4 : 0
   'causal_conv1d: channel mismatch' assert C = # k
   pad =. ((dc - 1) , C) $ 0
   z =. pad , xv
-  out =. (0 , C) $ 0
-  for_t. i. nt do.
-    win =. (t + i. dc) { z
-    out =. out , +/"1 k * |: win
-  end.
-  out
+  idx =. (i. nt) +/ i. dc
+  win =. 0 2 1 |: idx { z
+  +/"1 k *"2 win
 )
 
 NB. One conv step with cache.

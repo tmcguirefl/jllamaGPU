@@ -88,6 +88,8 @@ NB. Q: n_tok x n_head x d_head
 NB. K,V: n_tok x n_head_kv x d_head (K,V may be longer on tok axis)
 NB. GQA expands K,V to n_head before per-head attention.
 NB. -> n_q x n_head x d_head
+NB. Heads are an axis: one batched +/ .* , not for_h. GPU rank-3
+NB. (b,m,k) +/ .* (b,k,n) is batched GEMM.
 attention_heads =: 3 : 0
   'q k v' =. y
   n_head =. 1 { $ q
@@ -99,18 +101,17 @@ attention_heads =: 3 : 0
     v =. n_rep expand_kv v
   end.
   nq =. # q
+  nk =. # k
   dh =. {: $ q
   NB. 1 0 2 |:  -> n_head x n_tok x d_head
   qb =. 1 0 2 |: q
   kb =. 1 0 2 |: k
   vb =. 1 0 2 |: v
-  NB. Cat items; do not > a list of boxed GPU nouns.
-  O =. (0 , nq , dh) $ 0
-  for_h. i. n_head do.
-    a1 =. attention1 (h { qb) ; (h { kb) ; (h { vb)
-    O =. O , (1 , nq , dh) $ , a1
+  scores =. (qb +/ . * 0 2 1 |: kb) % %: dh
+  if. (nq = nk) *. nq > 1 do.
+    scores =. scores + causal_mask nq
   end.
-  1 0 2 |: O
+  1 0 2 |: (softmax scores) +/ . * vb
 )
 
 NB. ---------------------------------------------------------------
