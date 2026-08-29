@@ -16,6 +16,38 @@ Not a port of the llama.cpp C++ codebase. jllama reimplements a **thin vertical 
 
 Clone this tree and run from the repo root. Scripts load from `ROOT` (the directory that contains `jllama_cli.ijs` / `jllama_dev.ijs`). A `manifest.ijs` will later install the same files as a J addon.
 
+### Download models (Hugging Face `hf`)
+
+Lab GGUFs live in `models/` (gitignored). Fixtures under `test/fixtures/` are already in the repo. Install the Hub CLI once, then pull **one file** per model (do not clone the whole repo):
+
+```sh
+uv tool install huggingface_hub
+export PATH="$HOME/.local/bin:$PATH"
+# equivalent: pip install -U "huggingface_hub[cli]"
+```
+
+From the **jllamaGPU repo root**:
+
+```sh
+hf download shibatch/stories-converted stories15M.F16.gguf --local-dir models
+hf download bartowski/Llama-3.2-1B-Instruct-GGUF Llama-3.2-1B-Instruct-f16.gguf --local-dir models
+hf download mradermacher/Qwen3.5-2B-GGUF Qwen3.5-2B.f16.gguf --local-dir models
+hf download second-state/Phi-4-mini-instruct-GGUF Phi-4-mini-instruct-Q4_K_M.gguf --local-dir models
+hf download bartowski/phi-4-GGUF phi-4-Q4_K_M.gguf --local-dir models
+```
+
+| Local path | Hub repo | File | Size (approx) |
+|---|---|---|---|
+| `models/stories15M.F16.gguf` | [shibatch/stories-converted](https://huggingface.co/shibatch/stories-converted) | `stories15M.F16.gguf` | 47 MB |
+| `models/Llama-3.2-1B-Instruct-f16.gguf` | [bartowski/Llama-3.2-1B-Instruct-GGUF](https://huggingface.co/bartowski/Llama-3.2-1B-Instruct-GGUF) | `Llama-3.2-1B-Instruct-f16.gguf` | 2.3 GB |
+| `models/Qwen3.5-2B.f16.gguf` | [mradermacher/Qwen3.5-2B-GGUF](https://huggingface.co/mradermacher/Qwen3.5-2B-GGUF) | `Qwen3.5-2B.f16.gguf` | 3.8 GB |
+| `models/Phi-4-mini-instruct-Q4_K_M.gguf` | [second-state/Phi-4-mini-instruct-GGUF](https://huggingface.co/second-state/Phi-4-mini-instruct-GGUF) | `Phi-4-mini-instruct-Q4_K_M.gguf` | 2.3 GB |
+| `models/phi-4-Q4_K_M.gguf` | [bartowski/phi-4-GGUF](https://huggingface.co/bartowski/phi-4-GGUF) | `phi-4-Q4_K_M.gguf` | 8.4–9.1 GB |
+
+`hf download <repo> <filename> --local-dir models` writes `models/<filename>`. If Hub nests an extra directory, move the `.gguf` up into `models/` so the CLI paths below match. Qwen F16 from Unsloth is the same weights under a different name (`unsloth/Qwen3.5-2B-GGUF` → `Qwen3.5-2B-BF16.gguf`); rename or pass that path to `-m`.
+
+On 32 GB unified memory, prefer the Q4 Phi files. Qwen 2B **F16** is a large GPU load (activations stay F32). Phi-4 **14B F16** does not fit; use Q4_K_M.
+
 ### Run the CLI
 
 From the repo root, either invoke the J script directly (shebang → jconsole) or use the thin wrapper.
@@ -28,13 +60,6 @@ From the repo root, either invoke the J script directly (shebang → jconsole) o
 
 # equivalent wrapper
 bin/jllama_cli -m models/stories15M.F16.gguf -p "Once upon a time" -n 32
-```
-
-Download once if needed:
-
-```sh
-export PATH="$HOME/.local/bin:$PATH"   # after: uv tool install huggingface_hub
-hf download shibatch/stories-converted stories15M.F16.gguf --local-dir models
 ```
 
 #### Llama 3.2 1B Instruct (F16 GGUF) — larger lab model
@@ -70,13 +95,42 @@ Filename `Qwen3.5` / `qwen35` → noun `Qwen35` (`". '0!:0 Qwen35'`). F16/F32 on
 
 Text-only: gated attention (QK-norm, Q-gate, partial NeoX RoPE) interleaved with Gated DeltaNet. MTP/NextN and the vision encoder are skipped.
 
-#### Phi-4-mini (phi3 graph, NeoX RoPE)
+#### Phi-4-mini and Phi-4 14B (same phi3 graph)
 
-Filename `Phi-4-mini` / `phi4-mini` / `phi-4` / `phi3` → noun `Phi4Mini`. Dense GQA decoder; fused QKV / fused SwiGLU split at load. ~3.8B F16 → ~30 GB as J f64 (tight on 32 GB).
+Filename `Phi-4-mini` / `phi4-mini` / `phi-4` / `phi4` / `phi3` → noun `Phi4Mini`. There is **no separate 14B architecture**. Both GGUFs are `general.architecture=phi3`: NeoX RoPE, GQA, fused QKV / fused SwiGLU split at load.
+
+| | Phi-4-mini instruct | Phi-4 14B |
+|---|---|---|
+| Params | 3.8B | 14.7B |
+| Typical quant on 32 GB | `Q4_K_M` (~2.3 GB) | `Q4_K_M` (~8.4–9.1 GB) |
+| F16 on 32 GB | tight | too large (~29 GB weights) |
+| `n_embd` / layers / GQA | 3072 / 32 / 24×8 | 5120 / 40 / 40×10 |
+| `n_rot` | 96 of 128 (partial) | 128 (full) |
+| RoPE θ | 10000 | 250000 |
+| Tokenizer | gpt2-family | gpt2, `pre=dbrx` |
+| Chat template | ChatML | ChatML (`<\|im_start\|>…`) |
+
+Downloads: see [Download models](#download-models-hugging-face-hf) above.
+
+**Why 14B “only repeats the prompt” or answers in one line.** The CLI always prints **prompt + new tokens**. Mini was usually run as **completion** (`-p "Paris is the capital of France"`): it keeps writing the next sentence of a document, so `-n 16` looks detailed. 14B is a **chat** checkpoint. A raw question is out of distribution: it may echo the user turn, emit `<|im_end|>` (id `100265`) immediately, or answer `Paris.` and stop. Default `-n 16` plus EOS-stop makes that look empty or terse. The graph is the same; the prompt format is not.
+
+**ChatML (required for 14B, optional but better for mini).** Wrap the user turn and leave the assistant header open. Ask for length in the user or system text, and raise `-n` so EOS — not the cap — ends the turn:
 
 ```sh
-./jllama_cli.ijs -m models/Phi-4-mini-instruct-f16.gguf -p "What is the capital of France?" -n 16
+./jllama_cli.ijs -m models/phi-4-Q4_K_M.gguf -n 128 --tokens \
+  -p '<|im_start|>user<|im_sep|>What is the capital of France? Write a short paragraph.<|im_end|><|im_start|>assistant<|im_sep|>'
 ```
+
+With a system turn:
+
+```sh
+./jllama_cli.ijs -m models/phi-4-Q4_K_M.gguf -n 128 \
+  -p '<|im_start|>system<|im_sep|>Answer in a few sentences.<|im_end|><|im_start|>user<|im_sep|>What is the capital of France?<|im_end|><|im_start|>assistant<|im_sep|>'
+```
+
+`--tokens` shows whether new ids are `100265` (chat turn finished), a copy of the prompt, or real continuation. `--no-stop` ignores EOS and fills `-n` tokens (can ramble past `<|im_end|>`).
+
+Mini still accepts a raw completion string; 14B will not behave like stories15M / Llama-3.2-1B until the string is a ChatML turn. jllama does not apply the GGUF Jinja template — wrap it in `-p` as above. BOS is omitted for `pre=dbrx` (unlike Llama-3 `pre=llama-bpe`).
 
 #### Fixture plumbing + help
 
@@ -164,7 +218,10 @@ See [docs/hardware.md](docs/hardware.md). Short version:
 | Model | Role | Approx |
 |-------|------|--------|
 | `models/stories15M.F16.gguf` | Fast English lab (MHA) | ~47 MB F16 file |
-| `models/Llama-3.2-1B-Instruct-f16.gguf` | Primary 1B GQA lab | ~2.3 GB F16 file → large f64 RAM |
+| `models/Llama-3.2-1B-Instruct-f16.gguf` | Primary 1B GQA lab | ~2.3 GB F16 file |
+| `models/Qwen3.5-2B.f16.gguf` | 2B hybrid GDN | ~3.8 GB F16 |
+| `models/Phi-4-mini-instruct-Q4_K_M.gguf` | 3.8B phi3, Q4 packed | ~2.3 GB; raw `-p` often enough |
+| `models/phi-4-Q4_K_M.gguf` | 14B phi3, Q4 packed | ~8.4 GB; **ChatML `-p`**, `-n 128` |
 | `test/fixtures/*.gguf` | Unit / parity fixtures | tiny |
 
 - **Primary target:** ~0.5B–1B param **F16** Llama-arch GGUF, ctx 512–2048 for dev
