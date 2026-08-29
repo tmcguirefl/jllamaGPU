@@ -1,0 +1,47 @@
+NB. Named GPU kernels for a small LLM on this engine.
+NB. Runtime: /Users/tomdevel/j9.8/bin/jconsole  (GPU libj already installed).
+NB.   load 'jgpu.ijs'
+NB. Full rewrite notes: GPU_ENGINE.md
+NB.
+NB. GGUF weights are n_out x n_in (last axis = K, quantized).
+NB. Activations in jllama are n_tok x n_in. Linear is:
+NB.   y =. |: W +/ .* |: x
+NB. F32 + * - % |: , { $ and ,: stay on device.
+NB. RMSNorm/SiLU/softmax/RoPE are 128!:35-38.
+NB. Attention: 1 0 2 |:  (head permute), empty , K  (KV cache),
+NB.   scores + mask and scores % %: d  (dense mixed).
+
+cocurrent 'jgpu'
+
+silu =: 128!:35
+softmax =: 128!:36
+rmsnorm =: 128!:37
+rope =: 128!:38
+add =: 128!:39
+mul =: 128!:40
+gguf_load =: 128!:33
+quantize =: 128!:34
+
+NB. ggml type ids (left of +/ .* or x 128!:34 y)
+F32 =: 0
+F16 =: 1
+Q4_0 =: 2
+Q4_1 =: 3
+Q5_0 =: 6
+Q5_1 =: 7
+Q8_0 =: 8
+Q4_K =: 12
+Q5_K =: 13
+Q6_K =: 14
+
+NB. x linear W  — x is n_tok x n_in, W is n_out x n_in (GGUF / quantized layout)
+linear =: 4 : '|: y +/ .* |: x'
+
+NB. Llama-style SwiGLU. y = x ; Wg ; Wu ; Wd  (W* are n_out x n_in)
+swiglu =: 3 : 0
+  'xv wg wu wd' =. y
+  h =. (silu xv linear wg) * (xv linear wu)
+  h linear wd
+)
+
+cocurrent 'base'

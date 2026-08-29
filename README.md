@@ -1,12 +1,14 @@
 # jllama
 
+**GPU rewrite workspace.** Read **[GPU_ENGINE.md](GPU_ENGINE.md)** first (ggml-backed J 9.8, verb table, layout). Named wrappers: `jgpu.ijs`. Runtime: `/Users/tomdevel/j9.8/bin/jconsole` (never `/usr/bin/jconsole`).
+
 Llama-style dense decoder inference in the **J** programming language (Jsoftware J9.8).
 
 Not a port of the llama.cpp C++ codebase. jllama reimplements a **thin vertical slice** of the algorithm in J arrays: GGUF load, tokenize, prefill, KV-cache decode, sample — validated against llama.cpp as an oracle.
 
 ## Requirements
 
-- J 9.8 (`jconsole` at `/Applications/j9.8/bin/jconsole` on this machine)
+- J 9.8 (`jconsole` at `/Users/tomdevel/j9.8/bin/jconsole` on this machine; GPU `libj` is already installed there)
 - Always use the **full path** to jconsole (avoids the Java tool of the same name)
 - Optional addons: `general/misc` (trace), `math/lapack2`, `convert/pjson`
 
@@ -203,4 +205,6 @@ Full board: [docs/milestones.md](docs/milestones.md). Models detail: [docs/model
 
 ## License
 
-TBD.
+- **This repository** (J scripts, docs): MIT — see `LICENSE`.
+- **J engine** (`libj`): Jsoftware dual license (commercial **or** GPL-3) — see `THIRD_PARTY.md`.
+- **ggml** (linked by the GPU engine): MIT — see `THIRD_PARTY.md`.
