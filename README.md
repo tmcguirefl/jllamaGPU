@@ -207,7 +207,7 @@ labs/run_oracle.sh test/fixtures/tiny_parity_f16.gguf ab 3 --ids 259
 | Greedy parity vs llama.cpp | Training |
 | **CLI** (`jllama_cli.ijs`) | **Server** (optional later milestone) |
 
-jllama executes the transformer in J on the **GPU J engine** (`$.` nouns, `+/ .*`, `128!:35-38`). Architecture graphs live as **nouns** `Llama3`, `Qwen35`, and `Phi4Mini`. The CLI detects the arch from the `.gguf` filename: `". '0!:0 Qwen35'`. llama.cpp remains the external oracle.
+jllama executes the transformer in J on the **GPU J engine** (`G.` nouns, `+/ .*`, `'silu' g.` / `'softmax' g.` / `'rmsnorm' g.` / `'rope' g.`). Architecture graphs live as **nouns** `Llama3`, `Qwen35`, and `Phi4Mini`. The CLI detects the arch from the `.gguf` filename: `". '0!:0 Qwen35'`. llama.cpp remains the external oracle.
 
 Qwen Gated DeltaNet still needs extra `libj` wraps (`ggml_sigmoid`, `ggml_ssm_conv`, `ggml_gated_delta_net`) — see GPU_ENGINE.md.
 

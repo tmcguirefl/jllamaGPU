@@ -110,8 +110,8 @@ test_gdn_one_token =: 3 : 0
   g =. 1 1 $ 0
   beta =. 1 1 $ 1
   'out st' =. gdn_seq Q ; K ; V ; g ; beta
-  out =. $.^:_1 out
-  st =. $.^:_1 st
+  out =. G.^:_1 out
+  st =. G.^:_1 st
   assert. 1 1 2 -: $ out
   scale =. % %: 2
   assert. (scale , 0) allclose , out

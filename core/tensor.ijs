@@ -30,11 +30,11 @@ make2d =: ,:^:(1 = #@$)
 
 NB. Numeric closeness: 1 iff all atoms match within atol/rtol.
 NB. x allclose y
-NB. GPU nouns are sparse-float (3!:0 is 8192). Compare on the host:
+NB. GPU nouns have 3!:0 = 524288. Compare on the host:
 NB. GPU <: dense ATOL is a nonce (ATOL is not a GPU noun).
 allclose =: 4 : 0
-  if. 8192 = 3!:0 x do. x =. $.^:_1 x end.
-  if. 8192 = 3!:0 y do. y =. $.^:_1 y end.
+  if. 524288 = 3!:0 x do. x =. G.^:_1 x end.
+  if. 524288 = 3!:0 y do. y =. G.^:_1 y end.
   *./ , (| x - y) <: ATOL + RTOL * | y
 )
 

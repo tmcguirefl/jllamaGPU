@@ -43,7 +43,7 @@ packw =: 4 : 0
   shape =. x
   seed =. y
   n =. */ shape
-  $. shape $ 0.02 * <: 23 | seed + 3 * i. n
+  G. shape $ 0.02 * <: 23 | seed + 3 * i. n
 )
 
 NB. y = n_embd ; n_head ; n_ff ; seed [; n_head_kv]
@@ -61,8 +61,8 @@ make_layer =: 3 : 0
   'make_layer: n_head_kv > 0' assert n_head_kv > 0
   d_head =. n_embd % n_head
   n_kv_dim =. n_head_kv * d_head
-  attn_n =. $. n_embd $ 1 + 0.01 * i. n_embd
-  ffn_n =. $. n_embd $ 1 + 0.01 * |. i. n_embd
+  attn_n =. G. n_embd $ 1 + 0.01 * i. n_embd
+  ffn_n =. G. n_embd $ 1 + 0.01 * |. i. n_embd
   wq =. (n_embd , n_embd) packw seed + 1
   wk =. (n_kv_dim , n_embd) packw seed + 2
   wv =. (n_kv_dim , n_embd) packw seed + 3
@@ -95,7 +95,7 @@ make_synthetic =: 3 : 0
   for_i. i. n_layer do.
     layers =. layers , make_layer n_embd ; n_head ; n_ff ; (seed + 1000 + 50 * i) ; n_head_kv
   end.
-  ln_f =. $. n_embd $ 1 + 0.005 * i. n_embd
+  ln_f =. G. n_embd $ 1 + 0.005 * i. n_embd
   lm_head =. (n_vocab , n_embd) packw seed + 200
   hparams =. n_vocab ; n_embd ; n_head ; n_layer ; n_ff ; theta ; n_head_kv
   <"_ (hparams ; wte ; layers ; ln_f ; lm_head)
@@ -115,14 +115,14 @@ NB. model logits_last xhidden  (last token only)
 logits_last =: 4 : 0
   'hp wte layers ln_f lm_head' =. > x
   h =. ln_f rmsnorm y
-  $.^:_1 (_1 { h) linear lm_head
+  G.^:_1 (_1 { h) linear lm_head
 )
 
 NB. model logits_all xhidden
 logits_all =: 4 : 0
   'hp wte layers ln_f lm_head' =. > x
   h =. ln_f rmsnorm y
-  $.^:_1 h linear lm_head
+  G.^:_1 h linear lm_head
 )
 
 NB. Unpack hparams; accept legacy 6-item (MHA) packs

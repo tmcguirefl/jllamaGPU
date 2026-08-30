@@ -14,7 +14,7 @@ NB.   gguf_names load
 NB.   model_from_gguf path    -> jllama model box (Llama dense MHA/GQA)
 NB.   gguf_summary path
 NB.
-NB. Weight layout (GPU engine 128!:33):
+NB. Weight layout (GPU engine 'gguf' g.):
 NB.   J shape is ggml dims reversed; last axis = K = n_in.
 NB.   2d weights stay n_out x n_in (no J-side transpose).
 NB.   token_embd.weight is n_vocab x n_embd; asf32 so { works.
@@ -313,7 +313,7 @@ GPU_TABLE =: 0 2 $ a:
 
 gguf_gpu_table =: 3 : 0
   if. -. GPU_PATH -: y do.
-    GPU_TABLE =: 128!:33 y
+    GPU_TABLE =: 'gguf' g. y
     GPU_PATH =: y
   end.
   GPU_TABLE

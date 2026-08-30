@@ -39,16 +39,15 @@ Display of a GPU noun does **not** densify. `8!:0 y` is a one-line summary like 
 
 ## 2. What a GPU noun is
 
-The engine **hijacks the sparse header**. Classic sparse is not used in this fork.
+GPU nouns are a first-class type (`3!:0` is `524288`). Classic sparse is unused in this fork.
 
-- `P.a[0] = _1` sentinel
-- `2 $. y` → ggml type id (`0` F32, `1` F16, `2` Q4_0, `6` Q5_0, `8` Q8_0, `12` Q4_K, …)
-- `4 $. y` → `nbytes , natom` (packed size, not `4 * natom` for quants)
+- `2 G. y` → ggml type id (`0` F32, `1` F16, `2` Q4_0, `6` Q5_0, `8` Q8_0, `12` Q4_K, …)
+- `4 G. y` → `nbytes , natom` (packed size, not `4 * natom` for quants)
 - `$ y` and `# y` are the J shape (last axis = **K** for quantized weights)
 
 ```j
-g =. $. x          NB. dense numeric → GPU F32
-h =. $.^:_1 g      NB. download to FL (Q4/F16 dequant to float)
+g =. G. x          NB. dense numeric → GPU F32
+h =. G.^:_1 g      NB. download to FL (Q4/F16 dequant to float)
 ```
 
 Quantized nouns stay **packed**. Do not dequant at load. The only v1 consumer of a packed quant noun is **left argument of** `+/ .*` (and download for debugging).
@@ -61,10 +60,10 @@ Quantized nouns stay **packed**. Do not dequant at load. The only v1 consumer of
 
 | Phrase | Meaning |
 |--------|---------|
-| `$. y` | upload dense B01/INT/FL → GPU F32 |
-| `$.^:_1 y` / `0 $. y` | download; quants dequant to FL |
-| `2 $. y` | ggml type id |
-| `4 $. y` | packed `nbytes , natom` |
+| `G. y` | upload dense B01/INT/FL → GPU F32 |
+| `G.^:_1 y` / `0 G. y` | download; quants dequant to FL |
+| `2 G. y` | ggml type id |
+| `4 G. y` | packed `nbytes , natom` |
 | `8!:0 y` | summary string; **no** auto densify |
 
 ### 3.2 Linear algebra
@@ -80,15 +79,15 @@ Block sizes: F32/F16 = 1; Q4_0/Q5_0/Q8_0 = **32**; Q4_K/Q5_K/Q6_K = **256**.
 
 | Phrase | Meaning |
 |--------|---------|
-| `128!:35 x` | SiLU, any rank, F32 |
-| `128!:36 x` | softmax on **last** axis |
-| `w 128!:37 x` | RMSNorm, eps=`1e_5`; `w` gain length = last axis of `x` |
-| `128!:37 x` | RMSNorm without gain |
-| `128!:38 x` | RoPE, `pos = i. n_tok`, θ=10000, NORMAL, full last axis |
-| `pos 128!:38 x` | RoPE; `x` rank 2 `n_tok × d` or rank 3 `n_tok × n_head × d` |
-| `(pos;theta;n_rot;mode) 128!:38 x` | `mode` 0 = Llama NORMAL, 2 = NeoX; `n_rot` even, `≤ d_head` |
+| `'silu' g. x` | SiLU, any rank, F32 |
+| `'softmax' g. x` | softmax on **last** axis |
+| `w ('rmsnorm' g.) x` | RMSNorm, eps=`1e_5`; `w` gain length = last axis of `x` |
+| `'rmsnorm' g. x` | RMSNorm without gain |
+| `'rope' g. x` | RoPE, `pos = i. n_tok`, θ=10000, NORMAL, full last axis |
+| `pos ('rope' g.) x` | RoPE; `x` rank 2 `n_tok × d` or rank 3 `n_tok × n_head × d` |
+| `(pos;theta;n_rot;mode) ('rope' g.) x` | `mode` 0 = Llama NORMAL, 2 = NeoX; `n_rot` even, `≤ d_head` |
 
-Dense numeric args to these foreigns are auto-uploaded; result is always GPU F32.
+Dense numeric args to these kernels are auto-uploaded; result is always GPU F32. `g.` is an adverb: `'silu' g.` is a verb.
 
 Named locale (load `jgpu.ijs`):
 
@@ -123,9 +122,9 @@ These are the primitives jllama already writes. They work when the nouns are GPU
 
 | Phrase | Meaning |
 |--------|---------|
-| `128!:33 'file.gguf'` | boxed table shape `(#tensors, 2)` of `(name ; GPU noun)` |
-| `128!:34 W` | dense → **Q4_0** GPU; last axis `% 32` |
-| `tid 128!:34 W` | dense → ggml type `tid`. Write `Q8_0 128!:34 W` or `8 (128!:34) W` — **not** `8 128!:34 W` (parses as `(8 128)!:34`) |
+| `'gguf' g. 'file.gguf'` | boxed table shape `(#tensors, 2)` of `(name ; GPU noun)` |
+| `('quant' g.) W` | dense → **Q4_0** GPU; last axis `% 32` |
+| `tid ('quant' g.) W` | dense → ggml type `tid`. `Q8_0 ('quant' g.) W` or `8 ('quant' g.) W` |
 
 Type ids: `F16=1 Q4_0=2 Q4_1=3 Q5_0=6 Q5_1=7 Q8_0=8 Q4_K=12 Q5_K=13 Q6_K=14` (also in `jgpu.ijs`).
 
@@ -160,7 +159,7 @@ linear =: 4 : '|: y +/ .* |: x'   NB. x activations, y = W (n_out × n_in)
 Existing `core/tensor.ijs` `linear` (`b +"1 x +/ . * w` with `w` = n_in × n_out) is the **CPU** convention. For GPU, either:
 
 - keep GGUF-native `n_out × n_in` and use `linear_jgpu_`, or
-- upload `|:` of a CPU `n_in × n_out` **before** `128!:34` so the packed last axis is `n_in`.
+- upload `|:` of a CPU `n_in × n_out` **before** `('quant' g.)` so the packed last axis is `n_in`.
 
 Do not `x +/ .* Wq` with `Wq` quantized.
 
@@ -179,17 +178,17 @@ h linear wd
 
 | Current | GPU change |
 |---------|------------|
-| `core/tensor.ijs` `silu` `softmax` `rmsnorm` | bind to `128!:35-37` (or `*_jgpu_`) when args are GPU |
+| `core/tensor.ijs` `silu` `softmax` `rmsnorm` | bind to `'silu' g.` / `'softmax' g.` / `'rmsnorm' g.` (or `*_jgpu_`) when args are GPU |
 | `linear` / every `+/ . *` on weights | `linear_jgpu_` / `|: W +/ .* |: x` |
 | `causal_mask` | stay dense FL; `scores + mask` auto-uploads mask |
-| `core/rope.ijs` | `pos 128!:38 x` (NORMAL). NeoX: `(pos;theta;n_rot;2) 128!:38 x` |
+| `core/rope.ijs` | `pos ('rope' g.) x` (NORMAL). NeoX: `(pos;theta;n_rot;2) ('rope' g.) x` |
 | `split_heads` / `merge_heads` | already `$ ,` — works on GPU F32 |
 | `kv_empty` | `((0, n_kv, d)$0)` dense empty; `kc , K` starts the cache |
 | `expand_kv` | keep `1 0 2 \|: idx { 1 0 2 \|: y` |
 | `attention_heads` box loop | **do not** `heads , < …` then `> heads`. Open of a list of GPU boxes will not assemble one array. Cat items: `O =. ((0, n_q, dh)$0)` then `O =. O , attention1 …` then `1 0 2 \|: O` |
 | `mha_step` `kc , K` | works on GPU |
 | `,: xv` | works |
-| `io/gguf.ijs` | either call `128!:33` and keep packed GPU nouns, or keep the J parser for **metadata/tokenizer only** and take tensor bytes from `128!:33`. Do not promote weight tensors to f64. |
+| `io/gguf.ijs` | either call `'gguf' g.` and keep packed GPU nouns, or keep the J parser for **metadata/tokenizer only** and take tensor bytes from `'gguf' g.`. Do not promote weight tensors to f64. |
 | `ffn_swiglu` / `block_*` | GPU silu + linear + `+` `*` |
 
 Tokenizer, sampling, GGUF **metadata**, and token ids stay CPU.
@@ -202,7 +201,7 @@ Tokenizer, sampling, GGUF **metadata**, and token ids stay CPU.
 - GPU `+/ .*` with quantized **right** arg (right must be F32)
 - `|:` of a quantized noun
 - `>` of a **list** of boxed GPU arrays (scalar box `> <g` is fine)
-- IQ-type `128!:34` (need imatrix). GGUF **load** of those types still stores packed data; matmul may work if Metal has the kernel
+- IQ-type `('quant' g.)` (need imatrix). GGUF **load** of those types still stores packed data; matmul may work if Metal has the kernel
 - Reshape that changes atom count (no fill)
 - Mixed GPU + classic-sparse
 - Most other primitives (`^` `%.` `+/` on GPU, etc.) — use the named kernels
@@ -213,8 +212,8 @@ If a verb  nonces, the noun is probably still GPU; download only to debug.
 
 ## 7. Suggested first slice
 
-1. Smoke: `$.` roundtrip, `128!:33` on `test/fixtures/tiny_parity_f16.gguf` or jsource `gpu-phase0/tiny_q4.gguf`.
-2. Replace `silu` `softmax` `rmsnorm` `rope` with GPU foreigns; keep CPU fallbacks for dense.
+1. Smoke: `G.` roundtrip, `'gguf' g.` on `test/fixtures/tiny_parity_f16.gguf` or jsource `gpu-phase0/tiny_q4.gguf`.
+2. Replace `silu` `softmax` `rmsnorm` `rope` with `'silu' g.` etc.; keep CPU fallbacks for dense.
 3. GGUF weights: packed GPU nouns, shape `n_out × n_in`.
 4. FFN + RMSNorm + residual on GPU (SwiGLU).
 5. Attention: split/merge + `1 0 2 \|:` + per-head `{` + cat (no `> heads`) + `scores % %: d` + dense causal mask.
@@ -244,7 +243,7 @@ Source: `/Users/tomdevel/jdev/jsource` on branch `gpu-resident`.
 - Rebuild: `cd /Users/tomdevel/jdev/jsource/make2 && NOCLEAN=1 jplatform=darwin j64x=j64arm ./build_libj.sh`
 - Install into the runtime: copy `bin/darwin/j64arm/libj.dylib` and `libggml*.dylib` to `/Users/tomdevel/j9.8/bin/`
 
-Do not treat this as restoring classic Jsoftware sparse. This fork hijacks that slot on purpose.
+GPU nouns are type `GPU` (`3!:0` 524288), not sparse. `G.` constructs them; `g.` names kernels.
 
 ---
 

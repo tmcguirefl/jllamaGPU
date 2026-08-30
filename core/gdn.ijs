@@ -10,9 +10,9 @@ NB.   M += delta */ k
 NB.   out = (M +/ . * q) % %: d
 NB.
 NB. Causal conv1d: per-channel FIR of length d_conv, left-padded with zeros.
-NB. Kernel from GGUF 128!:33 is C x d_conv (ggml ne=[d_conv,C], J reverses).
+NB. Kernel from GGUF 'gguf' g. is C x d_conv (ggml ne=[d_conv,C], J reverses).
 NB. GPU insert +/"1 is engine FEAT_gpu_plus_reduce (sum last axis).
-NB. Sequence GDN is 128!:42 (one Metal kernel), not a J head/token loop.
+NB. Sequence GDN is 'gdn' g. (one Metal kernel), not a J head/token loop.
 
 cocurrent 'jllamagdn'
 
@@ -34,7 +34,7 @@ l2norm =: 3 : 0
 NB. Empty GDN state: y = n_v , d  -> GPU (n_v x d x d) $ 0
 gdn_empty =: 3 : 0
   'n_v d' =. y
-  $. (n_v , d , d) $ 0
+  G. (n_v , d , d) $ 0
 )
 
 NB. Empty conv cache: y = d_conv , C  -> (d_conv-1) x C
@@ -97,9 +97,9 @@ gdn_seq =: 3 : 0
   'gdn_seq: n_k must divide n_v' assert 0 = n_k | n_v
   NB. Atom 0 is not empty: */ $ 0 is 1. Treat missing/wrong rank as zeros.
   if. (0 = # , state) +. 3 ~: #$ state do.
-    state =. $. (n_v , d , d) $ 0
+    state =. G. (n_v , d , d) $ 0
   end.
-  128!:42 (<Q) , (<K) , (<V) , (<g) , (<beta) , (<state)
+  'gdn' g. (<Q) , (<K) , (<V) , (<g) , (<beta) , (<state)
 )
 
 cocurrent 'base'
