@@ -34,6 +34,7 @@ hf download bartowski/Llama-3.2-1B-Instruct-GGUF Llama-3.2-1B-Instruct-f16.gguf 
 hf download mradermacher/Qwen3.5-2B-GGUF Qwen3.5-2B.f16.gguf --local-dir models
 hf download second-state/Phi-4-mini-instruct-GGUF Phi-4-mini-instruct-Q4_K_M.gguf --local-dir models
 hf download bartowski/phi-4-GGUF phi-4-Q4_K_M.gguf --local-dir models
+hf download ggml-org/gpt-oss-20b-GGUF gpt-oss-20b-MXFP4.gguf --local-dir models
 ```
 
 | Local path | Hub repo | File | Size (approx) |
@@ -43,6 +44,7 @@ hf download bartowski/phi-4-GGUF phi-4-Q4_K_M.gguf --local-dir models
 | `models/Qwen3.5-2B.f16.gguf` | [mradermacher/Qwen3.5-2B-GGUF](https://huggingface.co/mradermacher/Qwen3.5-2B-GGUF) | `Qwen3.5-2B.f16.gguf` | 3.8 GB |
 | `models/Phi-4-mini-instruct-Q4_K_M.gguf` | [second-state/Phi-4-mini-instruct-GGUF](https://huggingface.co/second-state/Phi-4-mini-instruct-GGUF) | `Phi-4-mini-instruct-Q4_K_M.gguf` | 2.3 GB |
 | `models/phi-4-Q4_K_M.gguf` | [bartowski/phi-4-GGUF](https://huggingface.co/bartowski/phi-4-GGUF) | `phi-4-Q4_K_M.gguf` | 8.4–9.1 GB |
+| `models/gpt-oss-20b-MXFP4.gguf` | [ggml-org/gpt-oss-20b-GGUF](https://huggingface.co/ggml-org/gpt-oss-20b-GGUF) | `gpt-oss-20b-MXFP4.gguf` | ~12 GB |
 
 `hf download <repo> <filename> --local-dir models` writes `models/<filename>`. If Hub nests an extra directory, move the `.gguf` up into `models/` so the CLI paths below match. Qwen F16 from Unsloth is the same weights under a different name (`unsloth/Qwen3.5-2B-GGUF` → `Qwen3.5-2B-BF16.gguf`); rename or pass that path to `-m`.
 
@@ -143,6 +145,16 @@ With a system turn:
 `--tokens` shows whether new ids are `100265` (chat turn finished), a copy of the prompt, or real continuation. `--no-stop` ignores EOS and fills `-n` tokens (can ramble past `<|im_end|>`).
 
 Mini still accepts a raw completion string; 14B will not behave like stories15M / Llama-3.2-1B until the string is a ChatML turn. jllama does not apply the GGUF Jinja template — wrap it in `-p` as above. BOS is omitted for `pre=dbrx` (unlike Llama-3 `pre=llama-bpe`).
+
+#### GPT-OSS 20B (MoE + G: scratch)
+
+Filename `gpt-oss` / `gpt_oss` / `gptoss` → noun `GptOss`. Native MXFP4 experts (~12 GB). Uses `G:` scratch like Qwen (refit on prefill vs decode). Attention sinks and even-layer SWA (window 128) are in the graph; YaRN is not applied yet (NeoX RoPE at the GGUF θ — fine for short CLI prompts).
+
+Harmony wrap is required (the CLI does not apply the Jinja template):
+
+```sh
+bin\jllama_cli.cmd -m models\gpt-oss-20b-MXFP4.gguf -n 128 -p '<|start|>user<|message|>What is the capital of France?<|end|><|start|>assistant<|channel|>final<|message|>'
+```
 
 #### Fixture plumbing + help
 

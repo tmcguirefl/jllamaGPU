@@ -24,6 +24,9 @@ test_detect_arch_filename =: 3 : 0
   assert. 'Phi4Mini' -: detect_arch 'models/Phi-4-mini-instruct-f16.gguf'
   assert. 'Phi4Mini' -: detect_arch 'phi4-mini-Q8_0.gguf'
   assert. 'Phi4Mini' -: detect_arch 'Phi-4-14B-f16.gguf'
+  assert. 'GptOss' -: detect_arch 'models/gpt-oss-20b-MXFP4.gguf'
+  assert. 'GptOss' -: detect_arch 'gpt_oss-20b.gguf'
+  assert. 'GptOss' -: detect_arch 'GptOss-20B-Q8.gguf'
   1
 )
 
@@ -39,6 +42,10 @@ test_arch_nouns =: 3 : 0
   assert. 1 e. 'model_from_gguf_llama' E. Llama3
   assert. 1 e. 'model_from_gguf_qwen' E. Qwen35
   assert. 1 e. 'model_from_gguf_phi' E. Phi4Mini
+  assert. 2 = 3!:0 GptOss
+  assert. LF e. GptOss
+  assert. 1 e. 'jllamagptoss' E. GptOss
+  assert. 1 e. 'model_from_gguf_gptoss' E. GptOss
   1
 )
 

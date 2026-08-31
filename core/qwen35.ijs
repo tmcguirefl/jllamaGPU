@@ -58,6 +58,7 @@ scratch_fit =: 3 : 0
   qkvd =. ((+: nk) + nv) * dstate
   H =: gs nt , ne
   A =: gs nt , ne
+  FFOUT =: gs nt , ne
   RN =: gs nt , ne
   QKV =: gs nt , qkvd
   ZG =: gs nt , nv * dstate
@@ -234,11 +235,11 @@ qwen_gdn_run =: 3 : 0
   g =. GG
   g =. sa *"1 softplus alpha +"1 dt
   if. 0 = # , sstate do. sstate =. 0 $ 0 end.
-  'core sstate2' =. gdn_seq q ; k ; v ; g ; beta ; sstate
+  'gdn_out sstate2' =. gdn_seq q ; k ; v ; g ; beta ; sstate
+  NB. Do not bind CORE over gdn_out — that discarded the recurrence.
   core =. CORE
-  NB. gated RMSNorm: rmsnorm(core, snorm) * silu(z)
   z3 =. (n_tok , n_v , d_state) $ , z
-  core =. (snorm rmsnorm core) * silu z3
+  core =. (snorm rmsnorm gdn_out) * silu z3
   out =. A
   out =. ((n_tok , val_dim) $ , core) linear wout
   out ; ccache2 ; sstate2
@@ -255,7 +256,7 @@ qwen_ffn =: 3 : 0
   'h post_n wg wu wd eps' =. y
   r =. RN
   r =. post_n rmsnorm h
-  out =. A
+  out =. FFOUT
   out =. h + ffn_swiglu r ; wg ; wu ; wd
   out
 )

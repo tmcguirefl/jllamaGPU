@@ -48,7 +48,7 @@ swiglu =: 3 : 0
   h linear wd
 )
 
-NB. Embeddings and 1-d gains must be F32 for { and rmsnorm. Load-time only.
+NB. 1-d gains (RMSNorm) must be F32. Embeddings stay packed; ids { wte dequants rows.
 asf32 =: G. @: (G.^:_1)
 
 cocurrent 'base'

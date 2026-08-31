@@ -33,9 +33,12 @@ arch_base =: 3 : 0
   p
 )
 
-NB. y = GGUF path or filename -> 'Llama3' or 'Qwen35' or 'Phi4Mini'
+NB. y = GGUF path or filename -> 'Llama3' or 'Qwen35' or 'Phi4Mini' or 'GptOss'
 detect_arch =: 3 : 0
   p =. arch_lc arch_base y
+  if. +./ 'gpt-oss' E. p do. 'GptOss' return. end.
+  if. +./ 'gpt_oss' E. p do. 'GptOss' return. end.
+  if. +./ 'gptoss' E. p do. 'GptOss' return. end.
   if. +./ 'qwen3.5' E. p do. 'Qwen35' return. end.
   if. +./ 'qwen-3.5' E. p do. 'Qwen35' return. end.
   if. +./ 'qwen3_5' E. p do. 'Qwen35' return. end.
@@ -105,10 +108,25 @@ block_prefill_cached_jllamamodel_ =: block_prefill_cached_jllamaphi_
 cocurrent jllama_arch_prev_z_
 )
 
+NB. ---------------------------------------------------------------
+NB. GptOss — GPT-OSS MoE + GQA + attention sinks + G: scratch
+NB. Bring in with:  0!:0 GptOss   or   ". '0!:0 GptOss'
+NB. ---------------------------------------------------------------
+GptOss =: 0 : 0
+jllama_arch_prev_z_ =: 18!:5 ''
+load ROOT_jllamasys_ , 'core/gptoss.ijs'
+model_from_gguf_jllamagguf_ =: model_from_gguf_gptoss_jllamagguf_
+block_full_jllamamodel_ =: block_full_jllamagptoss_
+block_step_jllamamodel_ =: block_step_jllamagptoss_
+block_prefill_cached_jllamamodel_ =: block_prefill_cached_jllamagptoss_
+cocurrent jllama_arch_prev_z_
+)
+
 NB. Publish on z so  0!:0 Llama3  works from any locale.
 Llama3_z_ =: Llama3
 Qwen35_z_ =: Qwen35
 Phi4Mini_z_ =: Phi4Mini
+GptOss_z_ =: GptOss
 detect_arch_z_ =: detect_arch
 apply_arch_z_ =: apply_arch
 load_arch_file_z_ =: load_arch_file

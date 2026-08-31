@@ -17,7 +17,7 @@ NB.
 NB. Weight layout (GPU engine 'gguf' g.):
 NB.   J shape is ggml dims reversed; last axis = K = n_in.
 NB.   2d weights stay n_out x n_in (no J-side transpose).
-NB.   token_embd.weight is n_vocab x n_embd; asf32 so { works.
+NB.   token_embd.weight stays packed; ids { wte is ggml_get_rows → F32.
 NB.   Metadata/tokenizer still parsed in J (header only, no blob).
 
 cocurrent 'jllamagguf'
@@ -354,7 +354,7 @@ model_from_gguf_llama =: 3 : 0
   'model_from_gguf: n_embd not divisible by n_head' assert 0 = n_head | n_embd
   d_head =. n_embd % n_head
   theta =. {. load gguf_meta_default 'llama.rope.freq_base' ; DEFAULT_THETA
-  wte =. asf32_jgpu_ load gguf_tensor 'token_embd.weight'
+  wte =. load gguf_tensor 'token_embd.weight'
   n_vocab =. # wte
   'model_from_gguf: bad embd width' assert n_embd = {: $ wte
   vs =. load gguf_meta_default 'llama.vocab_size' ; n_vocab
@@ -424,7 +424,7 @@ model_from_gguf_qwen =: 3 : 0
   n_k =. {. load gguf_meta_default (prefk , '.ssm.group_count') ; 16
   n_v =. {. load gguf_meta_default (prefk , '.ssm.time_step_rank') ; 16
   d_inner =. {. load gguf_meta_default (prefk , '.ssm.inner_size') ; (n_v * d_state)
-  wte =. asf32_jgpu_ load gguf_tensor 'token_embd.weight'
+  wte =. load gguf_tensor 'token_embd.weight'
   n_vocab =. # wte
   'model_from_gguf_qwen: bad embd width' assert n_embd = {: $ wte
   ln_f =. asf32_jgpu_ load gguf_tensor 'output_norm.weight'
@@ -505,7 +505,7 @@ model_from_gguf_phi =: 3 : 0
   RMS_EPS_jllamablock_ =: eps
   RMS_EPS_jllamaattn_ =: eps
   RMS_EPS_jllamaphi_ =: eps
-  wte =. asf32_jgpu_ load gguf_tensor 'token_embd.weight'
+  wte =. load gguf_tensor 'token_embd.weight'
   n_vocab =. # wte
   'model_from_gguf_phi: bad embd width' assert n_embd = {: $ wte
   ln_f =. asf32_jgpu_ load gguf_tensor 'output_norm.weight'
@@ -548,6 +548,89 @@ model_from_gguf_phi =: 3 : 0
     'model_from_gguf_phi: bad attn_q out' assert ({. $ wq) = n_q
     'model_from_gguf_phi: bad attn_k out' assert ({. $ wk) = n_k
     layer =. <"_ (attn_n ; wq ; wk ; wv ; wo ; ffn_n ; wg ; wu ; wd)
+    layers =. layers , layer
+  end.
+  hparams =. n_vocab ; n_embd ; n_head ; n_layer ; n_ff ; theta ; n_head_kv
+  <"_ (hparams ; wte ; layers ; ln_f ; lm_head)
+)
+
+NB. Optional F32 bias; 0 if the tensor is absent.
+gguf_bias =: 4 : 0
+  if. x gguf_has y do. asf32_jgpu_ x gguf_tensor y else. 0 end.
+)
+
+NB. ---------------------------------------------------------------
+NB. GPT-OSS MoE (arch gpt-oss / gptoss) -> jllama model box
+NB. Sets GHP_jllamagptoss_. Expert 3d weights stay packed.
+NB. ---------------------------------------------------------------
+model_from_gguf_gptoss =: 3 : 0
+  load =. gguf_load y
+  arch =. load gguf_meta 'general.architecture'
+  ok =. +./ arch&-: &> 'gpt-oss' ; 'gptoss'
+  if. -. ok do.
+    smoutput 'model_from_gguf_gptoss: architecture is ' , arch , ' (expected gpt-oss)'
+  end.
+  prefk =. arch
+  if. -. ok do. prefk =. 'gpt-oss' end.
+  n_embd =. {. load gguf_meta prefk , '.embedding_length'
+  n_layer =. {. load gguf_meta prefk , '.block_count'
+  n_ff =. {. load gguf_meta_default (prefk , '.expert_feed_forward_length') ; (load gguf_meta_default (prefk , '.feed_forward_length') ; n_embd)
+  n_head =. {. load gguf_meta prefk , '.attention.head_count'
+  n_head_kv =. {. load gguf_meta_default (prefk , '.attention.head_count_kv') ; n_head
+  'model_from_gguf_gptoss: n_head_kv must divide n_head' assert 0 = n_head_kv | n_head
+  'model_from_gguf_gptoss: n_embd not divisible by n_head' assert 0 = n_head | n_embd
+  d_head =. {. load gguf_meta_default (prefk , '.attention.key_length') ; (n_embd % n_head)
+  n_rot =. {. load gguf_meta_default (prefk , '.rope.dimension_count') ; d_head
+  theta =. {. load gguf_meta_default (prefk , '.rope.freq_base') ; 150000
+  eps =. {. load gguf_meta_default (prefk , '.attention.layer_norm_rms_epsilon') ; 1e_5
+  n_exp =. {. load gguf_meta_default (prefk , '.expert_count') ; 32
+  n_used =. {. load gguf_meta_default (prefk , '.expert_used_count') ; 4
+  win =. {. load gguf_meta_default (prefk , '.attention.sliding_window') ; 128
+  wte =. load gguf_tensor 'token_embd.weight'
+  n_vocab =. # wte
+  'model_from_gguf_gptoss: bad embd width' assert n_embd = {: $ wte
+  ln_f =. asf32_jgpu_ load gguf_tensor 'output_norm.weight'
+  if. load gguf_has 'output.weight' do.
+    lm_head =. load gguf_tensor 'output.weight'
+  else.
+    lm_head =. wte
+  end.
+  GHP_jllamagptoss_ =: n_head ; n_head_kv ; d_head ; n_rot ; theta ; eps ; n_exp ; n_used ; n_ff ; win
+  RMS_EPS_jllamamodel_ =: eps
+  RMS_EPS_jllamablock_ =: eps
+  RMS_EPS_jllamaattn_ =: eps
+  RMS_EPS_jllamagptoss_ =: eps
+  n_q =. n_head * d_head
+  n_k =. n_head_kv * d_head
+  layers =. 0 $ a:
+  for_i. i. n_layer do.
+    bid =. ": i
+    pref =. 'blk.' , bid , '.'
+    if. 0 = 2 | i do. kind =. 'swa' else. kind =. 'full' end.
+    attn_n =. asf32_jgpu_ load gguf_tensor pref , 'attn_norm.weight'
+    post_n =. asf32_jgpu_ load gguf_tensor pref , 'post_attention_norm.weight'
+    wq =. load gguf_tensor pref , 'attn_q.weight'
+    wk =. load gguf_tensor pref , 'attn_k.weight'
+    wv =. load gguf_tensor pref , 'attn_v.weight'
+    wo =. load gguf_tensor pref , 'attn_output.weight'
+    bq =. load gguf_bias pref , 'attn_q.bias'
+    bk =. load gguf_bias pref , 'attn_k.bias'
+    bv =. load gguf_bias pref , 'attn_v.bias'
+    bo =. load gguf_bias pref , 'attn_output.bias'
+    sn =. pref , 'attn_sinks.weight'
+    if. -. load gguf_has sn do. sn =. pref , 'attn_sinks' end.
+    sinks =. asf32_jgpu_ load gguf_tensor sn
+    wrout =. load gguf_tensor pref , 'ffn_gate_inp.weight'
+    brout =. load gguf_bias pref , 'ffn_gate_inp.bias'
+    wge =. load gguf_tensor pref , 'ffn_gate_exps.weight'
+    wue =. load gguf_tensor pref , 'ffn_up_exps.weight'
+    wde =. load gguf_tensor pref , 'ffn_down_exps.weight'
+    bge =. load gguf_bias pref , 'ffn_gate_exps.bias'
+    bue =. load gguf_bias pref , 'ffn_up_exps.bias'
+    bde =. load gguf_bias pref , 'ffn_down_exps.bias'
+    'model_from_gguf_gptoss: bad attn_q out' assert ({. $ wq) = n_q
+    'model_from_gguf_gptoss: bad attn_k out' assert ({. $ wk) = n_k
+    layer =. <"_ (kind ; attn_n ; wq ; bq ; wk ; bk ; wv ; bv ; wo ; bo ; sinks ; post_n ; wrout ; brout ; wge ; bge ; wue ; bue ; wde ; bde)
     layers =. layers , layer
   end.
   hparams =. n_vocab ; n_embd ; n_head ; n_layer ; n_ff ; theta ; n_head_kv
