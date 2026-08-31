@@ -1,6 +1,6 @@
 # GPU J engine guide — rewrite jllama on ggml
 
-This tree is a **GPU fork workspace** of `jllama_dev`. The J 9.8 runtime on this machine already has the GPU `libj`. Start here; do not invent a second engine.
+This tree is **jllamaGPU** (it replaces the old `jllama_dev` directory). The J 9.8 runtime on this machine already has the GPU `j.dll`. Start here; do not invent a second engine.
 
 **Session goal:** keep tokens/embeddings on the CPU as needed, keep **weights and activations on the GPU**, and implement a small LLM (TinyStories / stories15M, then Llama-scale) using the verbs below. CPU transfer is for viewing, tokenize, and sample — not for every matmul.
 
@@ -10,26 +10,27 @@ This tree is a **GPU fork workspace** of `jllama_dev`. The J 9.8 runtime on this
 
 | What | Path |
 |------|------|
-| J console | `/Users/tomdevel/j9.8/bin/jconsole` |
-| Engine | `/Users/tomdevel/j9.8/bin/libj.dylib` (gpu-resident, 2026-08-29 beta7) |
-| ggml dylibs | same `bin/` (`libggml*.dylib`, rpath `@loader_path`) |
-| Stock J backup | `/Users/tomdevel/j9.8/bin/libj.dylib.jsoftware-beta5` |
-| Engine source | `/Users/tomdevel/jdev/jsource` branch `gpu-resident` (commit `a17db8b9`) |
-| Named wrappers | `jgpu.ijs` in this directory (copy of `jsource/gpu-phase0/jgpu.ijs`) |
-| Engine tests | `/Users/tomdevel/jdev/jsource/gpu-phase0/test_phase{1..5}.ijs` |
+| J console | `C:\Users\tmcguire\j9.8\bin\jconsole.exe` |
+| Engine | `C:\Users\tmcguire\j9.8\bin\j.dll` (gpu-resident, Windows Vulkan) |
+| ggml DLLs | same `bin/` (`ggml.dll`, `ggml-base.dll`, `ggml-cpu.dll`, `ggml-vulkan.dll`) |
+| Stock J backup | `C:\Users\tmcguire\j9.8\bin\j.dll.jsoftware-beta7` |
+| Engine source | `C:\Users\tmcguire\jdev\jsource` branch `gpu-resident` |
+| ggml sources | sibling `C:\Users\tmcguire\jdev\llama.cpp\ggml` |
+| Named wrappers | `jgpu.ijs` in this directory |
+| Engine tests | `C:\Users\tmcguire\jdev\jsource\gpu-phase0\test_phase{1..5}.ijs` |
 
-**Never** `/usr/bin/jconsole` (Java). **Never** assume `/Applications/j9.8` — this machine uses `/Users/tomdevel/j9.8`.
+Never the Java `jconsole`. Use the full path to J's `jconsole.exe`.
 
-Do **not** pass `-lib` unless you are testing a freshly built `jsource` dylib. Default jconsole already loads the GPU engine.
+Do **not** pass `-lib` unless you are testing a freshly built `jsource` `j.dll`. Default jconsole already loads the GPU engine.
 
 Check:
 
 ```
-/Users/tomdevel/j9.8/bin/jconsole
+"C:\Users\tmcguire\j9.8\bin\jconsole.exe"
    9!:14''
 ```
 
-Expect `j9.8.0-beta7` and date `2026-08-29` (clang-21). Stock Jsoftware was `beta5` / `2026-07-06`.
+Expect `j9.8.0-beta7` and `j64avx2/windows`.
 
 Working type on GPU: **F32**. J `FL` on CPU is IEEE double. Upload converts; download of F32 is exact enough for F32; vs F64 expect ~1e-3 on GEMM, ~1e-5 on unary.
 
@@ -46,8 +47,10 @@ GPU nouns are a first-class type (`3!:0` is `524288`). Classic sparse is unused 
 - `$ y` and `# y` are the J shape (last axis = **K** for quantized weights)
 
 ```j
-g =. G. x          NB. dense numeric → GPU F32
+g =. G. x          NB. dense numeric → GPU F32 (new cookie)
+m =. G: x          NB. same upload, mutable; later m=. kernel y reuses m
 h =. G.^:_1 g      NB. download to FL (Q4/F16 dequant to float)
+1 G. m             NB. 1 iff mutable
 ```
 
 Quantized nouns stay **packed**. Do not dequant at load. The only v1 consumer of a packed quant noun is **left argument of** `+/ .*` (and download for debugging).
@@ -60,7 +63,9 @@ Quantized nouns stay **packed**. Do not dequant at load. The only v1 consumer of
 
 | Phrase | Meaning |
 |--------|---------|
-| `G. y` | upload dense B01/INT/FL → GPU F32 |
+| `G. y` | upload dense B01/INT/FL → GPU F32 (new buffer) |
+| `G: y` | upload (or copy) to a **mutable** GPU noun; assignment in explicit defs writes that buffer |
+| `1 G. y` | 1 iff `y` is a `G:` noun |
 | `G.^:_1 y` / `0 G. y` | download; quants dequant to FL |
 | `2 G. y` | ggml type id |
 | `4 G. y` | packed `nbytes , natom` |
@@ -218,30 +223,26 @@ If a verb  nonces, the noun is probably still GPU; download only to debug.
 4. FFN + RMSNorm + residual on GPU (SwiGLU).
 5. Attention: split/merge + `1 0 2 \|:` + per-head `{` + cat (no `> heads`) + `scores % %: d` + dense causal mask.
 6. KV decode: empty `,` append.
-7. TinyStories `stories15M.F16.gguf` — models live in `jllama_dev/models/` (not copied here). Symlink if needed:
+7. TinyStories `stories15M.F16.gguf` — GGUFs live in this tree's `models/` (gitignored).
+
+Engine self-tests:
 
 ```
-ln -s /Users/tomdevel/jdev/jllama_dev/models /Users/tomdevel/jdev/jllamaGPU/models
-```
-
-Engine self-tests (already passing on this machine):
-
-```
-/Users/tomdevel/j9.8/bin/jconsole /Users/tomdevel/jdev/jsource/gpu-phase0/test_phase3.ijs
-/Users/tomdevel/j9.8/bin/jconsole /Users/tomdevel/jdev/jsource/gpu-phase0/test_phase4.ijs
-/Users/tomdevel/j9.8/bin/jconsole /Users/tomdevel/jdev/jsource/gpu-phase0/test_phase5.ijs
+"C:\Users\tmcguire\j9.8\bin\jconsole.exe" C:\Users\tmcguire\jdev\jsource\gpu-phase0\test_phase3.ijs
+"C:\Users\tmcguire\j9.8\bin\jconsole.exe" C:\Users\tmcguire\jdev\jsource\gpu-phase0\test_phase4.ijs
+"C:\Users\tmcguire\j9.8\bin\jconsole.exe" C:\Users\tmcguire\jdev\jsource\gpu-phase0\test_phase5.ijs
 ```
 
 ---
 
 ## 8. Engine internals (only if libj must change)
 
-Source: `/Users/tomdevel/jdev/jsource` on branch `gpu-resident`.
+Source: `C:\Users\tmcguire\jdev\jsource` on branch `gpu-resident`.
 
 - `jsrc/gpu.c` — J-facing (includes `j.h`, talks only to `gpu_api.h`)
-- `jsrc/gpu_ggml.c` / `gpu_metal.m` — **never** include `j.h`; Metal/ggml stay out of JE headers
-- Rebuild: `cd /Users/tomdevel/jdev/jsource/make2 && NOCLEAN=1 jplatform=darwin j64x=j64arm ./build_libj.sh`
-- Install into the runtime: copy `bin/darwin/j64arm/libj.dylib` and `libggml*.dylib` to `/Users/tomdevel/j9.8/bin/`
+- `jsrc/gpu_ggml.c` — **never** include `j.h`; ggml stays out of JE headers
+- Rebuild (Windows Vulkan): `third_party\build_ggml.ps1`, then `makemsvc\jdll`. Copy `j.dll` and `ggml*.dll` from `bin\windows\j64avx2` into `C:\Users\tmcguire\j9.8\bin\`
+- Details: `jsource/gpu-phase0/DESIGN_GPU_PLATFORMS.md`
 
 GPU nouns are type `GPU` (`3!:0` 524288), not sparse. `G.` constructs them; `g.` names kernels.
 
@@ -270,5 +271,5 @@ GPL-3.0-only** — the same option this project uses for Jsoftware jsource.
 | J engine / jsource (including `jsrc/gpu*.c`) | Jsoftware commercial **or** GPL-3; **this project uses GPL-3** | `jsource/LICENSE`, `LICENSE-GPL3` |
 | ggml | MIT (GPL-3 compatible) | `jsource/third_party/ggml.LICENSE` |
 
-Details: `THIRD_PARTY.md`. A release that ships `libj.dylib` must include
+Details: `THIRD_PARTY.md`. A release that ships `j.dll` / `libj` must include
 GPL-3 source for the engine fork as well as this application.

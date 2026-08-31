@@ -4,7 +4,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-JCONSOLE="${JCONSOLE:-/Applications/j9.8/bin/jconsole}"
+JCONSOLE="${JCONSOLE:-jconsole}"
 
 if [[ ! -x "$JCONSOLE" ]]; then
   echo "publish_jllama: jconsole not found: $JCONSOLE" >&2

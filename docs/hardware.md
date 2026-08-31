@@ -1,8 +1,8 @@
 # Hardware notes - test model sizing
 
-**Machine:** MacBook Pro, Apple M2, **32 GB** unified memory  
-**Runtime:** J 9.8 jconsole, arm64 Darwin  
-**v1 weights in RAM:** J **float64** (F16/F32 GGUF tensors promoted on load)
+**Machine:** Windows, AMD Ryzen AI Max+ 8060S, Vulkan  
+**Runtime:** J 9.8 `C:\Users\tmcguire\j9.8\bin\jconsole.exe` (`j.dll` gpu-resident)  
+**v1 weights in RAM:** GPU **F32** activations; GGUF weights stay packed. CPU J **float64** only after download.
 
 ## Why J needs more RAM than llama.cpp for the same GGUF
 
@@ -20,7 +20,7 @@ weight_RAM_GiB ~ 8 * (params_billions)
 comfortable_total ~ weights + KV + ~2-4 GiB headroom for J/OS
 ```
 
-On **32 GB**, leave room for macOS + browser + jconsole. Budget **~20-24 GB** peak for jllama experiments.
+Leave room for Windows + browser + jconsole. Budget headroom beyond packed GGUF + KV + activations.
 
 ## Recommendations
 

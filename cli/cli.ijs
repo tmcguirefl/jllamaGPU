@@ -24,6 +24,12 @@ decode =: decode_jllamavocab_
 vocab_eos =: vocab_eos_jllamavocab_
 generate_sample =: generate_sample_jllamamodel_
 
+NB. Progress to stdout. CLI load path only; generate_sample stays quiet.
+cli_log =: 3 : 0
+  smoutput 'jllama: ' , y
+  i. 0 0
+)
+
 NB. ---------------------------------------------------------------
 NB. Defaults / usage
 NB. ---------------------------------------------------------------
@@ -223,9 +229,19 @@ run_opts =: 3 : 0
   end.
 
   NB. Filename -> Llama3 / Qwen35 / Phi4Mini. Do builds  0!:0 NAME .
-  ". '0!:0 ' , detect_arch_jllamaarch_ model
+  arch =. detect_arch_jllamaarch_ model
+  nbytes =. 1!:4 < model
+  if. nbytes < 1000000 do. sz =. (": <. 0.5 + nbytes % 1000) , ' KB'
+  else. sz =. (": <. 0.5 + nbytes % 1000000) , ' MB'
+  end.
+  cli_log model , '  ' , sz
+  cli_log 'architecture ' , arch
+  cli_log 'loading weights to GPU'
+  ". '0!:0 ' , arch
   m =. model_from_gguf_jllamagguf_ model
+  cli_log 'loading tokenizer'
   v =. vocab_from_gguf model
+  cli_log 'encoding prompt'
   ids =. v encode prompt
   if. 0 = # ids do.
     smoutput 'jllama_cli: empty token ids after encode (empty prompt?)'
@@ -234,6 +250,7 @@ run_opts =: 3 : 0
 
   if. eos_id = _2 do. eos_id =. vocab_eos v end.
   cfg =. temp ; top_k ; top_p ; seed ; eos_id ; stop
+  cli_log 'generating ' , (": n_new) , ' tokens from ' , (": # ids) , ' prompt tokens'
   out =. m generate_sample (<ids) , (<n_new) , (<cfg)
   text =. v decode out
   if. show_tok do.

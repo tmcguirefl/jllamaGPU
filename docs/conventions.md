@@ -3,7 +3,7 @@
 ## Runtime
 
 ```text
-/Users/tomdevel/j9.8/bin/jconsole
+"C:\Users\tmcguire\j9.8\bin\jconsole.exe"
 ```
 
 Never bare `jconsole` (Java clash). No Java code in this project.

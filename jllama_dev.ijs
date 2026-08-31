@@ -1,15 +1,18 @@
 NB. jllamaGPU — GNU GPL v3 only. Copyright (C) 2026 Tom McGuire. See LICENSE.
 NB. jllama_dev - development / testing entry (not used by jllama_cli)
 NB. Prefer:
-NB.   /Users/tomdevel/j9.8/bin/jconsole /path/to/jllama_dev.ijs
+NB.   "C:\Users\tmcguire\j9.8\bin\jconsole.exe" C:\Users\tmcguire\jdev\jllamaGPU\jllama_dev.ijs
 NB.
 NB. Loads the engine from this clone (ROOT). No ~temp publish step.
 
 cocurrent 'base'
 
+NB. Windows 4!:3 uses \; Unix uses /. Take the last of either.
 3 : 0 ''
   p =. > {: 4!:3 ''
-  load (((p i: '/') {. p) , '/') , 'sysutils.ijs'
+  i =. (p i: '/') >. p i: '\'
+  if. i < # p do. d =. (i {. p) , '/' else. d =. (1!:43 '') , '/' end.
+  load d , 'sysutils.ijs'
   setroot_jllamasys_ 'jllama_dev.ijs'
   i. 0 0
 )
@@ -64,7 +67,7 @@ Oracle (M6/M10):
   make -C labs oracle_greedy   NB. needs brew llama.cpp
   labs/run_oracle.sh test/fixtures/tiny_parity_f16.gguf ab 3 --ids 259
 
-jconsole: /Users/tomdevel/j9.8/bin/jconsole
+jconsole: "C:\Users\tmcguire\j9.8\bin\jconsole.exe"
 trace:    load 'general/misc/trace'
 docs:     README.md  docs/hardware.md  docs/milestones.md  docs/models.md
 )

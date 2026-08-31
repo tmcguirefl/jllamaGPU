@@ -40,9 +40,45 @@ gdn_empty =: gdn_empty_jllamagdn_
 
 NB. Default 2B-class hparams; overwritten at GGUF load.
 QHP =: 8 ; 2 ; 256 ; 64 ; 10000 ; 1e_6 ; 4 ; 128 ; 16 ; 16
+NT =: 0
+NEMBD =: 0
 
 qhp_open =: 3 : 0
   if. 0 = # y do. QHP else. y end.
+)
+
+NB. G: zeros of shape y. Re-fit when n_tok or n_embd change (prefill vs decode).
+gs =: 3 : 'G: y $ 0'
+
+scratch_fit =: 3 : 0
+  nt =. {. y
+  ne =. {: y
+  if. (nt = NT) *. (ne = NEMBD) *. 0 ~: NT do. i. 0 0 return. end.
+  'nH n_kv d_head n_rot th eps dc dstate nk nv' =. QHP
+  qkvd =. ((+: nk) + nv) * dstate
+  H =: gs nt , ne
+  A =: gs nt , ne
+  RN =: gs nt , ne
+  QKV =: gs nt , qkvd
+  ZG =: gs nt , nv * dstate
+  MIX =: gs nt , qkvd
+  Q =: gs nt , nk , dstate
+  K =: gs nt , nk , dstate
+  V =: gs nt , nv , dstate
+  BETA =: gs nt , nv
+  ALPHA =: gs nt , nv
+  GG =: gs nt , nv
+  CORE =: gs nt , nv , dstate
+  QF =: gs nt , nH , +: d_head
+  QH =: gs nt , nH , d_head
+  GATE =: gs nt , nH , d_head
+  KH =: gs nt , n_kv , d_head
+  VH =: gs nt , n_kv , d_head
+  OH =: gs nt , nH , d_head
+  NT =: nt
+  NEMBD =: ne
+  smoutput 'jllama: G: scratch ' , (": nt) , ' x ' , ": ne
+  i. 0 0
 )
 
 NB. (w;eps) rmsnorm_vec1 vector  — one last-axis cell
@@ -76,18 +112,25 @@ qwen_mha_full =: 3 : 0
   'xv n_head n_kv d_head n_rot theta eps wq wk wv wo qn kn' =. y
   if. 1 = #$ xv do. xv =. ,: xv end.
   n_tok =. # xv
+  scratch_fit n_tok , {: $ xv
+  Qf =. QF
   Qf =. xv linear wq
   Qf =. (n_tok , n_head , +: d_head) $ , Qf
+  Q =. QH
   Q =. d_head {."1 Qf
+  gate =. GATE
   gate =. d_head }."1 Qf
   Q =. qn rmsnorm Q
+  K =. KH
   K =. n_kv split_heads xv linear wk
+  V =. VH
   V =. n_kv split_heads xv linear wv
   K =. kn rmsnorm K
   pos =. i. n_tok
   spec =. (<pos) , (<theta) , (<n_rot) , (<2)
   Q =. spec rope Q
   K =. spec rope K
+  O =. OH
   O =. attention_heads Q ; K ; V
   O =. O * sigmoid gate
   (merge_heads O) linear wo
@@ -98,12 +141,18 @@ NB. returns out1 ; kc2 ; vc2
 qwen_mha_step =: 3 : 0
   'xv n_head n_kv d_head n_rot theta eps wq wk wv wo qn kn kc vc pos' =. y
   if. 1 = #$ xv do. xv =. ,: xv end.
+  scratch_fit (# xv) , {: $ xv
+  Qf =. QF
   Qf =. xv linear wq
   Qf =. (1 , n_head , +: d_head) $ , Qf
+  Q =. QH
   Q =. d_head {."1 Qf
+  gate =. GATE
   gate =. d_head }."1 Qf
   Q =. qn rmsnorm Q
+  K =. KH
   K =. n_kv split_heads xv linear wk
+  V =. VH
   V =. n_kv split_heads xv linear wv
   K =. kn rmsnorm K
   spec =. ((<, pos) , (<theta) , (<n_rot) , (<2))
@@ -137,9 +186,13 @@ qwen_gdn_run =: 3 : 0
   end.
   if. 1 = #$ xv do. xv =. ,: xv end.
   n_tok =. # xv
+  scratch_fit n_tok , {: $ xv
+  qkv =. QKV
   qkv =. xv linear wqkv
+  z =. ZG
   z =. xv linear wz
   C =. {: $ qkv
+  mix =. MIX
   if. (0 = # , ccache) *. n_tok > 1 do.
     mix =. silu wconv causal_conv1d qkv
     if. (d_conv - 1) > n_tok do.
@@ -166,21 +219,28 @@ qwen_gdn_run =: 3 : 0
   NB. mix is n_tok x (2*n_k + n_v)*d_state. Split via reshape + { (also {."1 on GPU).
   nparts =. (+: n_k) + n_v
   r =. 1 0 2 |: (n_tok , nparts , d_state) $ , mix
+  q =. Q
   q =. 1 0 2 |: (i. n_k) { r
+  k =. K
   k =. 1 0 2 |: (n_k + i. n_k) { r
+  v =. V
   v =. 1 0 2 |: ((+: n_k) + i. n_v) { r
   q =. eps l2norm q
   k =. eps l2norm k
+  beta =. BETA
   beta =. sigmoid xv linear wbeta
+  alpha =. ALPHA
   alpha =. xv linear walpha
+  g =. GG
   g =. sa *"1 softplus alpha +"1 dt
   if. 0 = # , sstate do. sstate =. 0 $ 0 end.
   'core sstate2' =. gdn_seq q ; k ; v ; g ; beta ; sstate
+  core =. CORE
   NB. gated RMSNorm: rmsnorm(core, snorm) * silu(z)
   z3 =. (n_tok , n_v , d_state) $ , z
   core =. (snorm rmsnorm core) * silu z3
-  out =. (n_tok , val_dim) $ , core
-  out =. out linear wout
+  out =. A
+  out =. ((n_tok , val_dim) $ , core) linear wout
   out ; ccache2 ; sstate2
 )
 
@@ -193,8 +253,11 @@ NB. ---------------------------------------------------------------
 
 qwen_ffn =: 3 : 0
   'h post_n wg wu wd eps' =. y
+  r =. RN
   r =. post_n rmsnorm h
-  h + ffn_swiglu r ; wg ; wu ; wd
+  out =. A
+  out =. h + ffn_swiglu r ; wg ; wu ; wd
+  out
 )
 
 NB. y = (<x) , (<n_head) , layerbox [ , (<theta) ]
@@ -205,8 +268,11 @@ block_full =: 3 : 0
   else.
     'xv n_head layer' =. y
   end.
+  if. 1 = #$ xv do. xv =. ,: xv end.
+  scratch_fit (# xv) , {: $ xv
   'nH n_kv d_head n_rot th eps dc dstate nk nv' =. QHP
   kind =. layer_kind layer
+  h =. H
   if. kind -: 'attn' do.
     'knd attn_n wq wk wv wo qn kn post_n wg wu wd' =. layer
     h =. attn_n rmsnorm xv
@@ -229,8 +295,10 @@ block_step =: 3 : 0
     'xv n_head layer c1 c2 pos' =. y
   end.
   if. 1 = #$ xv do. xv =. ,: xv end.
+  scratch_fit (# xv) , {: $ xv
   'nH n_kv d_head n_rot th eps dc dstate nk nv' =. QHP
   kind =. layer_kind layer
+  h =. H
   if. kind -: 'attn' do.
     'knd attn_n wq wk wv wo qn kn post_n wg wu wd' =. layer
     h =. attn_n rmsnorm xv
@@ -251,12 +319,18 @@ qwen_mha_prefill =: 3 : 0
   'xv n_head n_kv d_head n_rot theta eps wq wk wv wo qn kn' =. y
   if. 1 = #$ xv do. xv =. ,: xv end.
   n_tok =. # xv
+  scratch_fit n_tok , {: $ xv
+  Qf =. QF
   Qf =. xv linear wq
   Qf =. (n_tok , n_head , +: d_head) $ , Qf
+  Q =. QH
   Q =. d_head {."1 Qf
+  gate =. GATE
   gate =. d_head }."1 Qf
   Q =. qn rmsnorm Q
+  K =. KH
   K =. n_kv split_heads xv linear wk
+  V =. VH
   V =. n_kv split_heads xv linear wv
   K =. kn rmsnorm K
   pos =. i. n_tok
@@ -277,8 +351,10 @@ block_prefill_cached =: 3 : 0
     'xv n_head layer' =. y
   end.
   if. 1 = #$ xv do. xv =. ,: xv end.
+  scratch_fit (# xv) , {: $ xv
   'nH n_kv d_head n_rot th eps dc dstate nk nv' =. QHP
   kind =. layer_kind layer
+  h =. H
   if. kind -: 'attn' do.
     'knd attn_n wq wk wv wo qn kn post_n wg wu wd' =. layer
     h =. attn_n rmsnorm xv

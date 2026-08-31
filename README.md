@@ -1,6 +1,6 @@
 # jllama
 
-**GPU rewrite workspace.** Read **[GPU_ENGINE.md](GPU_ENGINE.md)** first (ggml-backed J 9.8, verb table, layout). Named wrappers: `jgpu.ijs`. Runtime: `/Users/tomdevel/j9.8/bin/jconsole` (never `/usr/bin/jconsole`).
+**GPU rewrite workspace.** Read **[GPU_ENGINE.md](GPU_ENGINE.md)** first (ggml-backed J 9.8, verb table, layout). Named wrappers: `jgpu.ijs`. Runtime: `C:\Users\tmcguire\j9.8\bin\jconsole.exe` (never the Java `jconsole`).
 
 Llama-style dense decoder inference in the **J** programming language (Jsoftware J9.8).
 
@@ -8,7 +8,7 @@ Not a port of the llama.cpp C++ codebase. jllama reimplements a **thin vertical 
 
 ## Requirements
 
-- J 9.8 (`jconsole` at `/Users/tomdevel/j9.8/bin/jconsole` on this machine; GPU `libj` is already installed there)
+- J 9.8 (`jconsole` at `C:\Users\tmcguire\j9.8\bin\jconsole.exe` on this machine; GPU `j.dll` is already installed there)
 - Always use the **full path** to jconsole (avoids the Java tool of the same name)
 - Optional addons: `general/misc` (trace), `math/lapack2`, `convert/pjson`
 
@@ -50,7 +50,15 @@ On 32 GB unified memory, prefer the Q4 Phi files. Qwen 2B **F16** is a large GPU
 
 ### Run the CLI
 
-From the repo root, either invoke the J script directly (shebang → jconsole) or use the thin wrapper.
+From the repo root, either invoke the J script directly (shebang → jconsole on macOS/Linux) or use the thin wrapper. **Do not remove the `#!` line** — J skips it (`xs.c`); Windows cannot honor shebang, so run `jconsole.exe` or `bin\jllama_cli.cmd`.
+
+Windows (PowerShell), using the GPU `j.dll` already in `C:\Users\tmcguire\j9.8\bin`:
+
+```powershell
+cd C:\Users\tmcguire\jdev\jllamaGPU
+& 'C:\Users\tmcguire\j9.8\bin\jconsole.exe' .\jllama_cli.ijs --help
+.\bin\jllama_cli.cmd -m test\fixtures\tiny_parity_f16.gguf -p ab -n 3
+```
 
 #### TinyStories lab model (~15M, ~47 MB F16) — fast English smoke
 
@@ -60,6 +68,10 @@ From the repo root, either invoke the J script directly (shebang → jconsole) o
 
 # equivalent wrapper
 bin/jllama_cli -m models/stories15M.F16.gguf -p "Once upon a time" -n 32
+```
+
+```powershell
+.\bin\jllama_cli.cmd -m models\stories15M.F16.gguf -p "Once upon a time" -n 32
 ```
 
 #### Llama 3.2 1B Instruct (F16 GGUF) — larger lab model
@@ -159,13 +171,13 @@ Mini still accepts a raw completion string; 14B will not behave like stories15M 
 Without a shebang exec bit, you can always use jconsole explicitly:
 
 ```sh
-/Users/tomdevel/j9.8/bin/jconsole jllama_cli.ijs -m models/stories15M.F16.gguf -p "Once upon a time" -n 32
+"C:\Users\tmcguire\j9.8\bin\jconsole.exe" jllama_cli.ijs -m models/stories15M.F16.gguf -p "Once upon a time" -n 32
 ```
 
 ### 3. REPL (dev / tests)
 
 ```sh
-/Users/tomdevel/j9.8/bin/jconsole jllama_dev.ijs
+"C:\Users\tmcguire\j9.8\bin\jconsole.exe" jllama_dev.ijs
 ```
 
 Inside the session:
@@ -211,7 +223,7 @@ jllama executes the transformer in J on the **GPU J engine** (`G.` nouns, `+/ .*
 
 Qwen Gated DeltaNet still needs extra `libj` wraps (`ggml_sigmoid`, `ggml_ssm_conv`, `ggml_gated_delta_net`) — see GPU_ENGINE.md.
 
-## Test model (this machine: MacBook Pro M2, 32 GB)
+## Test model (this machine: Windows, AMD 8060S, Vulkan)
 
 See [docs/hardware.md](docs/hardware.md). Short version:
 
@@ -273,5 +285,5 @@ GPU/ggml backend) used under GPL v3, so this tree is GPL-3 as well — not MIT.
 - **J engine** (`libj`): Jsoftware dual license; this project uses the **GPL-3** option — `THIRD_PARTY.md`
 - **ggml**: MIT (compatible with GPL-3) — `THIRD_PARTY.md`
 
-A GitHub release that includes `libj.dylib` is a GPL-3 distribution of both
+A GitHub release that includes `j.dll` is a GPL-3 distribution of both
 the application and the engine.

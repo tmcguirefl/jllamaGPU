@@ -17,6 +17,13 @@ MILESTONE =: 'M15'
 
 ROOT =: (1!:43 '') , '/'
 
+NB. Directory of a file path, trailing /. Accepts / and \ (Windows 4!:3).
+scriptdir =: 3 : 0
+  p =. , y
+  i =. (p i: '/') >. p i: '\'
+  if. i < # p do. (i {. p) , '/' else. (1!:43 '') , '/' end.
+)
+
 NB. y = basename (or unique substring) of a script already in 4!:3,
 NB. e.g. 'jllama_cli.ijs'. Sets ROOT to that script's directory.
 setroot =: 3 : 0
@@ -25,8 +32,7 @@ setroot =: 3 : 0
   scripts =. 4!:3 ''
   hit =. scripts #~ +./@(marker&E.)@> scripts
   if. # hit do.
-    p =. > {: hit
-    ROOT =: ((p i: '/') {. p) , '/'
+    ROOT =: scriptdir > {: hit
   else.
     ROOT =: (1!:43 '') , '/'
   end.

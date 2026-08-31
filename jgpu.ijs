@@ -1,6 +1,6 @@
 NB. jllamaGPU — GNU GPL v3 only. Copyright (C) 2026 Tom McGuire. See LICENSE.
 NB. Named GPU kernels for a small LLM on this engine.
-NB. Runtime: /Users/tomdevel/j9.8/bin/jconsole  (GPU libj already installed).
+NB. Runtime: "C:\Users\tmcguire\j9.8\bin\jconsole.exe"  (GPU libj already installed).
 NB.   load 'jgpu.ijs'
 NB. Full rewrite notes: GPU_ENGINE.md
 NB.
